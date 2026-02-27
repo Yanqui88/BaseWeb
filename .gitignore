@@ -1,12 +1,27 @@
+# Dependencies
 node_modules
 .pnpm-store
+
+# Next.js
 .next
 out
+dist
+build
+
+# Environment files
 .env
 .env.local
 .env.*.local
+
+# Logs
 *.log
+logs
+
+# OS / Editor
 .DS_Store
 Thumbs.db
 .vscode
 .idea
+
+# Prisma
+prisma/dev.db
