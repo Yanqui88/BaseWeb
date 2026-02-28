@@ -11,6 +11,16 @@ type HomeBanner =
     }
   | null;
 
+function resolveImageUrl(apiUrl: string, url?: string | null) {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  // Si es un upload local guardado como ruta relativa:
+  if (trimmed.startsWith("/uploads/")) return `${apiUrl}${trimmed}`;
+  // Si ya es URL absoluta (https://...):
+  return trimmed;
+}
+
 async function getBanner(): Promise<HomeBanner> {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
   const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
@@ -24,6 +34,7 @@ async function getBanner(): Promise<HomeBanner> {
 }
 
 export default async function Home() {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
   const banner = await getBanner();
 
   return (
@@ -38,22 +49,22 @@ export default async function Home() {
               href={banner.href}
               className="relative hidden overflow-hidden rounded-2xl md:block"
             >
-              <BannerDesktop banner={banner} />
+              <BannerDesktop banner={banner} apiUrl={apiUrl} />
             </a>
           ) : (
             <div className="relative hidden overflow-hidden rounded-2xl md:block">
-              <BannerDesktop banner={banner} />
+              <BannerDesktop banner={banner} apiUrl={apiUrl} />
             </div>
           )}
 
           {/* Mobile */}
           {banner.href ? (
             <a href={banner.href} className="block md:hidden">
-              <BannerMobile banner={banner} />
+              <BannerMobile banner={banner} apiUrl={apiUrl} />
             </a>
           ) : (
             <div className="block md:hidden">
-              <BannerMobile banner={banner} />
+              <BannerMobile banner={banner} apiUrl={apiUrl} />
             </div>
           )}
         </section>
@@ -62,11 +73,19 @@ export default async function Home() {
   );
 }
 
-function BannerDesktop({ banner }: { banner: NonNullable<HomeBanner> }) {
+function BannerDesktop({
+  banner,
+  apiUrl,
+}: {
+  banner: NonNullable<HomeBanner>;
+  apiUrl: string;
+}) {
+  const src = resolveImageUrl(apiUrl, banner.desktopImageUrl);
+
   return (
     <>
       <img
-        src={banner.desktopImageUrl}
+        src={src}
         alt={banner.alt ?? "Banner"}
         className="h-[420px] w-full object-cover"
       />
@@ -97,12 +116,20 @@ function BannerDesktop({ banner }: { banner: NonNullable<HomeBanner> }) {
   );
 }
 
-function BannerMobile({ banner }: { banner: NonNullable<HomeBanner> }) {
+function BannerMobile({
+  banner,
+  apiUrl,
+}: {
+  banner: NonNullable<HomeBanner>;
+  apiUrl: string;
+}) {
+  const src = resolveImageUrl(apiUrl, banner.mobileImageUrl);
+
   return (
     <>
       <div className="overflow-hidden rounded-2xl">
         <img
-          src={banner.mobileImageUrl}
+          src={src}
           alt={banner.alt ?? "Banner"}
           className="w-full object-cover"
         />

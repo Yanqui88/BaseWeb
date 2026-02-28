@@ -12,7 +12,8 @@ import {
 import { FileInterceptor } from "@nestjs/platform-express";
 import { PrismaService } from "../prisma/prisma.service";
 import { diskStorage } from "multer";
-import { extname } from "path";
+import { extname, join } from "path";
+import { readdir } from "fs/promises";
 
 type UpsertBannerDto = {
   desktopImageUrl: string;
@@ -105,5 +106,22 @@ export class AdminController {
   ) {
     if (!file) throw new BadRequestException("No file uploaded");
     return { url: `/uploads/${file.filename}` };
+  }
+
+
+  @Get(":tenantSlug/uploads")
+  async listUploads(@Param("tenantSlug") _tenantSlug: string) {
+    const dir = join(process.cwd(), "uploads");
+    const files = await readdir(dir);
+
+    const images = files
+      .filter((f) => /\.(png|jpe?g|webp|gif|svg)$/i.test(f))
+      .sort()
+      .reverse(); // los más nuevos primero (aprox por timestamp en filename)
+
+    return images.map((name) => ({
+      name,
+      url: `/uploads/${name}`,
+    }));
   }
 }
