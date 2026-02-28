@@ -1,5 +1,18 @@
-import { Body, Controller, Get, Param, Put } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  UploadedFile,
+  UseInterceptors,
+} from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import { PrismaService } from "../prisma/prisma.service";
+import { diskStorage } from "multer";
+import { extname } from "path";
 
 type UpsertBannerDto = {
   desktopImageUrl: string;
@@ -43,6 +56,7 @@ export class AdminController {
       select: { id: true },
     });
 
+    // MVP: 1 banner principal
     await this.prisma.homeBanner.deleteMany({ where: { tenantId: tenant.id } });
 
     return this.prisma.homeBanner.create({
@@ -60,5 +74,36 @@ export class AdminController {
         sortOrder: 0,
       },
     });
+  }
+
+  @Post(":tenantSlug/uploads")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      storage: diskStorage({
+        destination: "./uploads",
+        filename: (_req, file, cb) => {
+          const safeExt = (extname(file.originalname) || "").toLowerCase();
+          const name = `upload-${Date.now()}-${Math.round(
+            Math.random() * 1e9
+          )}${safeExt || ".bin"}`;
+          cb(null, name);
+        },
+      }),
+      limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+      fileFilter: (_req, file, cb) => {
+        // MVP: cualquier image/*
+        if (!file.mimetype.startsWith("image/")) {
+          return cb(new Error("Only image uploads are allowed"), false);
+        }
+        cb(null, true);
+      },
+    })
+  )
+  async uploadImage(
+    @Param("tenantSlug") _tenantSlug: string,
+    @UploadedFile() file?: Express.Multer.File
+  ) {
+    if (!file) throw new BadRequestException("No file uploaded");
+    return { url: `/uploads/${file.filename}` };
   }
 }
