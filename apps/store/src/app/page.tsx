@@ -33,10 +33,42 @@ async function getBanner(): Promise<HomeBanner> {
   return res.json();
 }
 
+type Product = {
+  id: string;
+  title: string;
+  slug: string;
+  coverImage: string | null;
+  minPrice: number | null;
+};
+
+async function getProducts(): Promise<Product[]> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
+  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
+
+  const res = await fetch(
+    `${apiUrl}/public/${tenant}/products`,
+    { cache: "no-store" }
+  );
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  return data.items ?? [];
+}
+
+function formatARSFromCents(cents: number) {
+  const value = cents / 100;
+  return value.toLocaleString("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    maximumFractionDigits: 0,
+  });
+}
+
 export default async function Home() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
   const banner = await getBanner();
-
+  const products = await getProducts();
   return (
     <main className="mx-auto max-w-6xl p-4">
       <h1 className="text-2xl font-semibold">ProyectoWeb Store</h1>
@@ -67,6 +99,42 @@ export default async function Home() {
               <BannerMobile banner={banner} apiUrl={apiUrl} />
             </div>
           )}
+        </section> 
+      )}
+      
+      {/* PRODUCT GRID */}
+      {products.length > 0 && (
+        <section className="mt-10">
+          <h2 className="text-xl font-semibold">Productos</h2>
+
+          <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {products.map((p) => (
+              <a
+                key={p.id}
+                href={`/product/${p.slug}`}
+                className="group rounded-xl border p-3 hover:shadow-sm"
+              >
+                <div className="aspect-square w-full overflow-hidden rounded-lg bg-black/5">
+                  {p.coverImage && (
+                    <img
+                      src={p.coverImage}
+                      alt={p.title}
+                      className="h-full w-full object-cover transition-transform group-hover:scale-[1.02]"
+                    />
+                  )}
+                </div>
+
+                <div className="mt-3">
+                  <div className="text-sm font-medium">{p.title}</div>
+                  <div className="mt-1 text-sm opacity-70">
+                    {p.minPrice != null
+                      ? formatARSFromCents(p.minPrice)
+                      : "Sin stock"}
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
         </section>
       )}
     </main>

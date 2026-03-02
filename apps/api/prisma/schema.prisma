@@ -13,37 +13,162 @@ datasource db {
 }
 
 model Tenant {
-  id          String @id @default(cuid())
-  slug        String @unique
-  name        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   homeBanners HomeBanner[]
+
+  // ✅ NUEVO: ecommerce relations
+  products    Product[]
+  variants    Variant[]
+  stocks      Stock[] //viejo, queda para transicion
+  locations   Location[]
+  inventories Inventory[]
 }
 
 model HomeBanner {
-  id              String   @id @default(cuid())
-  tenantId         String
+  id       String @id @default(cuid())
+  tenantId String
 
-  desktopImageUrl  String
-  mobileImageUrl   String
-  href             String?
-  alt              String?
+  desktopImageUrl String
+  mobileImageUrl  String
+  href            String?
+  alt             String?
 
-  title            String?
-  subtitle         String?
-  badge            String?
-  buttonText       String?
+  title      String?
+  subtitle   String?
+  badge      String?
+  buttonText String?
 
-  isActive         Boolean  @default(true)
-  startsAt         DateTime?
-  endsAt           DateTime?
-  sortOrder        Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isActive  Boolean   @default(true)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, isActive, sortOrder])
+}
+
+// ===== ECOMMERCE =====
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+model Product {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  title       String
+  slug        String
+  description String?
+  status      ProductStatus @default(DRAFT)
+
+  coverImage String?
+  images     String[] @default([])
+
+  variants Variant[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+}
+
+model Variant {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sku       String
+  title     String?
+  price     Int
+  compareAt Int?
+
+  color String?
+  size  String?
+
+  inventories Inventory[]
+
+  stock Stock?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, productId])
+  @@index([price])
+}
+
+model Stock {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  variantId String  @unique
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  quantity Int     @default(0)
+  location String?
+
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model Location {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  name     String
+  city     String?
+  address  String?
+  isActive Boolean @default(true)
+
+  inventories Inventory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive])
+}
+
+model Inventory {
+  id String @id @default(cuid())
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  quantity  Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@unique([variantId, locationId]) //permite 1 fila por variante por depósito.
+  @@index([tenantId])
+  @@index([variantId])
+  @@index([locationId])
 }

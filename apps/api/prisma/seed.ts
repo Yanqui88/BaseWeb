@@ -8,6 +8,46 @@ const adapter = new PrismaPg({
 
 const prisma = new PrismaClient({ adapter });
 
+async function seedEcommerce(tenantId: string) {
+  // Limpieza (solo para seed repetible en dev)
+  await prisma.stock.deleteMany({ where: { tenantId } });
+  await prisma.variant.deleteMany({ where: { tenantId } });
+  await prisma.product.deleteMany({ where: { tenantId } });
+
+  await prisma.product.create({
+    data: {
+      tenantId,
+      title: "Remera Básica",
+      slug: "remera-basica",
+      status: "ACTIVE",
+      coverImage: "https://picsum.photos/seed/remera/1200/1200",
+      variants: {
+        create: [
+          {
+            tenantId,
+            sku: "REM-BAS-NEG-S",
+            title: "Negro / S",
+            price: 129900,
+            color: "Negro",
+            size: "S",
+            stock: { create: { tenantId, quantity: 10 } },
+          },
+          {
+            tenantId,
+            sku: "REM-BAS-NEG-M",
+            title: "Negro / M",
+            price: 129900,
+            color: "Negro",
+            size: "M",
+            stock: { create: { tenantId, quantity: 7 } },
+          },
+        ],
+      },
+    },
+  });
+}
+
+
 async function main() {
   const tenant = await prisma.tenant.upsert({
     where: { slug: "default" },
@@ -32,6 +72,8 @@ async function main() {
       sortOrder: 0,
     },
   });
+  
+  await seedEcommerce(tenant.id);
 
   console.log("Seed OK");
 }
