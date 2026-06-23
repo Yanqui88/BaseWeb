@@ -1,0 +1,91 @@
+# Bitácora de Desarrollo - ProyectoWeb
+
+Este archivo actúa como el registro oficial de decisiones de diseño, cambios arquitectónicos, modelo de negocio y control de versiones lógicas de nuestro framework eCommerce multi-tenant.
+
+---
+
+## 📌 1. Visión y Modelo de Negocio
+
+* **Público Objetivo:** Comercios, pymes y emprendedores en ciudades medianas/pequeñas (ej. 100,000 habs.) donde un costo de desarrollo de ecommerce tradicional (>$500 USD) es prohibitive.
+* **Propuesta de Valor:**
+  * eCommerce funcional con envíos nacionales por una suscripción mensual accesible (aprox. $40 - $50 USD).
+  * Control de stock y presencia digital profesional (estatus y visibilidad local).
+  * Escalabilidad nacional (acceso potencial a millones de usuarios fuera de su localidad).
+* **Modelo Operativo:**
+  * **Backend Único:** Un único backend (NestJS) ejecutándose en un servidor propio (VPS de aprox. $15 USD para ~15 clientes).
+  * **Frontend Dinámico Compartido:** Un único despliegue de la tienda pública (`apps/store`) que responde a múltiples dominios de forma dinámica (leyendo configuración del tenant desde la base de datos).
+  * **Bajo Esfuerzo de Onboarding:** El alta de un cliente estándar se realiza desde el panel administrativo en 1 minuto, sin necesidad de tocar código ni realizar despliegues individuales.
+
+---
+
+## 🛠️ 2. Historial de Decisiones de Arquitectura
+
+### [Base de Datos 1 - Selección de ORM/Query Builder]
+* **Fecha:** 2026-06-23
+* **Contexto:** Se venía utilizando Prisma v7 configurado de manera automática por asistentes de IA. El desarrollador tiene conocimientos de SQL/Postgres y busca mayor control y eficiencia para el multi-tenant.
+* **Decisión:** **SQL Puro utilizando el driver nativo de Node.js `pg` (con pg-pool)**. Se descarta Prisma v7 para eliminar el consumo del motor Rust en memoria, simplificar la configuración de RLS y permitir que el desarrollador aplique directamente sus conocimientos de SQL y Postgres. Los tipos de datos devueltos por las consultas y DTOs se definirán a mano en TypeScript.
+
+### [Estructura del Almacenamiento de Datos]
+* **Fecha:** 2026-06-23
+* **Contexto:** Decisión sobre cómo aislar los datos de los clientes en el servidor Postgres único.
+* **Decisión:** **Base de datos única con Row-Level Security (RLS) en Postgres**. Todos los clientes compartirán la misma base de datos física para maximizar la cantidad de webs simultáneas en el VPS económico (hasta ~30 tiendas en un VPS de 2GB RAM), pero el aislamiento de datos estará garantizado a nivel de motor de Postgres utilizando RLS (Row-Level Security), eliminando el riesgo de filtración de información por errores humanos de programación en el código.
+
+### [Arquitectura y Despliegue del Frontend]
+* **Fecha:** 2026-06-23
+* **Contexto:** Definir cómo desplegar las tiendas de múltiples clientes manteniendo bajos costos y velocidad de entrega.
+* **Decisión:** **Frontend Único Compartido Dinámico (SaaS Real)**. Las tiendas estándar correrán sobre un único despliegue de Next.js (`apps/store`). El diseño, colores (variables CSS), logo, banners y componentes activos se cargarán dinámicamente desde la base de datos según el host de origen (`clienteA.com`). La arquitectura queda desacoplada para admitir despliegues individuales de Next.js (`apps/custom-store-x`) apuntando al mismo backend para clientes premium que requieran un código visual único.
+
+### [Integración de Pasarela de Pagos (Mercado Pago)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Cada comercio debe recibir los cobros directamente en su propia cuenta de Mercado Pago sin intervención administrativa del dueño de la plataforma y sin requerir conocimientos técnicos del comerciante.
+* **Decisión:** **Mercado Pago OAuth (Flujo de Aplicación)**. Se registrará una aplicación de Mercado Pago en la plataforma. Desde el panel de administración, el cliente iniciará el flujo de OAuth de Mercado Pago mediante un botón. Tras autorizar la app, el backend guardará su `access_token` y `refresh_token` encriptados en la base de datos asociados a su `tenantId`. Los checkouts de sus clientes se crearán utilizando este token para asegurar que los fondos se acrediten directamente en la cuenta bancaria del comercio.
+
+### [Integración de Logística y Envíos Automatizados]
+* **Fecha:** 2026-06-23
+* **Contexto:** Brindar envíos automatizados a todo el país para expandir el alcance de comercios locales hacia todo el territorio nacional, facilitando la cotización en tiempo real y la impresión de etiquetas sin carga administrativa manual.
+* **Decisión:** **Integración de APIs de Correo (ej. Andreani / Envíopack)**. La base de datos incluirá campos obligatorios de peso (en gramos) y dimensiones (alto, ancho, largo en cm) para cada [Product](file:///home/yanqui/ProyectosWeb/ProyectoWeb/apps/api/prisma/schema.prisma#L45-L62) o variante. En el checkout de Next.js, se solicitará el Código Postal (CP) al comprador, y el backend NestJS consultará al vuelo a las APIs de correo para cotizar los envíos y permitir al usuario elegir entre entrega a domicilio o retiro en sucursal del correo. Tras completarse el pago en Mercado Pago, se generará de manera automática la etiqueta de despacho (PDF) descargable desde el panel de administración del cliente.
+
+### [Mapeo de Dominios y Enrutamiento Dinámico (Host-based Routing)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Otorgar estatus y seriedad permitiendo que cada tienda cargue bajo su propio dominio de marca (ej. `tiendadezapatos.com`) o un subdominio de la plataforma (ej. `zapatos.miplataforma.com`) de manera transparente y segura con HTTPS.
+* **Decisión:** **Enrutamiento por Host y SSL On-Demand con Caddy**. El servidor web Caddy actuará como proxy inverso y se configurará con SSL On-Demand. El cliente apuntará su dominio mediante un registro DNS tipo `A` a la IP pública del VPS. Cuando se visite el dominio, Caddy obtendrá automáticamente el certificado SSL (Let's Encrypt). Al recibir la petición, Next.js leerá el dominio desde la cabecera `host` en las peticiones HTTP y solicitará al backend los datos correspondientes a ese tenant, permitiendo una experiencia de marca blanca totalmente independiente.
+
+### [Autenticación de Administradores y Flujo de Compra sin Fricciones (Guest Checkout)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Permitir que los comerciantes gestionen sus tiendas de forma segura y garantizar la mayor tasa de conversión posible de ventas en la tienda pública, eliminando pasos innecesarios.
+* **Decisión:** **Autenticación JWT para Administradores y Compra sin Registro (Guest Checkout) para Clientes**. Los comerciantes tendrán un usuario y contraseña guardados en la base de datos vinculados a su `tenantId` para acceder a `apps/admin` (autenticados vía tokens JWT). Los compradores de la tienda pública (`apps/store`) podrán completar compras de forma directa ingresando su email y datos de envío durante el proceso de pago, sin verse obligados a registrar una cuenta ni crear contraseñas. Cada pedido se vinculará al correo electrónico ingresado para que el comercio pueda realizar el seguimiento.
+
+### [Sistema de Notificaciones y Comunicación (Email + WhatsApp)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Mantener informados a los compradores y comerciantes sobre el estado de sus pedidos de manera instantánea y con bajo coste operativo para la plataforma.
+* **Decisión:** **Híbrido de Emails Automatizados y Redirección a WhatsApp**. El backend utilizará un proveedor de correo electrónico (como Resend o SendGrid en sus límites gratuitos) para despachar correos transaccionales de confirmación al comprador y notificaciones de nueva venta al comerciante. En el frontend de Next.js (`apps/store`), la página de confirmación de compra incluirá un botón destacado para "Notificar por WhatsApp", que abrirá una ventana de chat directa al número de WhatsApp configurado por el comerciante con un mensaje pre-formateado que contiene el número de orden, los productos comprados y el método de entrega seleccionado.
+
+### [Almacenamiento de Multimedia y Optimización de Imágenes]
+* **Fecha:** 2026-06-23
+* **Contexto:** Almacenar imágenes de productos, banners y logos de forma segura sin agotar el espacio en disco del VPS y asegurando que las páginas carguen rápido.
+* **Decisión:** **Almacenamiento Local en VPS con Compresión Automática vía Sharp**. Las imágenes se almacenarán en el sistema de archivos local del VPS. El endpoint de carga del backend NestJS utilizará la librería `sharp` para procesar cada archivo subido al vuelo: se limitará la resolución máxima, se comprimirá la calidad y se convertirá forzosamente el archivo al formato moderno `.webp` (más eficiente y liviano). Esto garantiza que el uso de disco del servidor se mantenga bajo y optimiza el rendimiento SEO de las tiendas de cara al cliente final.
+
+### [Compartición de Tipos en el Monorepo (packages/shared)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Al remover Prisma, es crítico evitar la duplicación de tipos y asegurar que las modificaciones en las consultas del backend NestJS o las respuestas de la API no rompan los frontends en Next.js.
+* **Decisión:** **Tipado Manual en un Paquete Compartido (`packages/shared`)**. Se creará un espacio común en el monorepo para declarar las interfaces de TypeScript de los modelos (ej. `Product`, `Variant`, `Order`, `Category`) y las validaciones de Zod compartidas. Tanto la API como la tienda pública y el panel administrador consumirán estos tipos locales. Esto otorga control absoluto sobre los datos expuestos (evitando enviar columnas sensibles de la base de datos al cliente final) y previene errores en tiempo de compilación.
+
+### [Gestión de Migraciones de Base de Datos (node-pg-migrate)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Mantener un control versionado del esquema de base de datos Postgres sin depender del motor de Prisma, permitiendo aplicar cambios de forma incremental y segura en entornos de desarrollo y producción.
+* **Decisión:** **Uso de node-pg-migrate**. Se adoptará la herramienta `node-pg-migrate` instalada en `apps/api`. Los cambios en la base de datos se definirán en archivos de migración (JS/TS) que contendrán sentencias de creación/alteración SQL nativas. Se configurarán scripts en `package.json` para ejecutar comandos `up` (aplicar cambios) y `down` (revertir cambios) utilizando la CLI de la herramienta, asegurando un flujo de trabajo estándar en la industria de Node.js + PostgreSQL.
+
+### [Control de Inventario y Multi-Depósito (Locations e Inventory)]
+* **Fecha:** 2026-06-23
+* **Contexto:** Definir la complejidad del inventario: si se requiere soporte para múltiples locales/depósitos físicos o una cantidad global simple por variante de producto.
+* **Decisión:** **Soporte Multi-Depósito Completo**. Se mantendrá la estructura avanzada relacional que permite gestionar inventario por sucursal física. Se utilizarán las entidades `Location` (para registrar locales y depósitos físicos vinculados a un tenant) e `Inventory` (para registrar la cantidad de stock de una `Variant` específica en una `Location` dada). El checkout y el backend utilizarán consultas SQL optimizadas (con joins) para validar la disponibilidad física y permitir al usuario elegir en qué sucursal retirar su pedido si selecciona retiro en local.
+
+---
+
+## 🚀 3. Historial de Commits / Pushes de Git
+
+Usa este registro para sincronizar tus pushes a GitHub. Cada vez que implementemos una sección nueva o realicemos una refactorización grande, registraremos aquí el nombre del commit/push sugerido. Puedes hacer `git commit -m "nombre-del-cambio"` para navegar en el historial de forma paralela a esta bitácora.
+
+| Fecha | Identificador lógico (Commit Message) | Descripción del Hito | Estado |
+| :--- | :--- | :--- | :--- |
+| 2026-06-23 | `feat: bases-arquitectura-bitacora` | Definición de las bases técnicas del proyecto (SQL Puro, Postgres RLS, Next.js compartido, MP OAuth, Andreani, node-pg-migrate). | **Pendiente de Push** |

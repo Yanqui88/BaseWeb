@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,162 +7,159 @@ datasource db {
 }
 
 model Tenant {
-  id        String   @id @default(cuid())
-  slug      String   @unique
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id          String       @id @default(cuid())
+  slug        String       @unique
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   homeBanners HomeBanner[]
-
-  // ✅ NUEVO: ecommerce relations
-  products    Product[]
-  variants    Variant[]
-  stocks      Stock[] //viejo, queda para transicion
-  locations   Location[]
   inventories Inventory[]
+  locations   Location[]
+  products    Product[]
+  stocks      Stock[]
+  variants    Variant[]
 }
 
 model HomeBanner {
-  id       String @id @default(cuid())
-  tenantId String
-
+  id              String    @id @default(cuid())
+  tenantId        String
   desktopImageUrl String
   mobileImageUrl  String
   href            String?
   alt             String?
-
-  title      String?
-  subtitle   String?
-  badge      String?
-  buttonText String?
-
-  isActive  Boolean   @default(true)
-  startsAt  DateTime?
-  endsAt    DateTime?
-  sortOrder Int       @default(0)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  tenant Tenant @relation(fields: [tenantId], references: [id])
+  title           String?
+  subtitle        String?
+  badge           String?
+  buttonText      String?
+  isActive        Boolean   @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  sortOrder       Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
 
   @@index([tenantId, isActive, sortOrder])
 }
 
-// ===== ECOMMERCE =====
-
-enum ProductStatus {
-  DRAFT
-  ACTIVE
-  ARCHIVED
-}
-
 model Product {
-  id String @id @default(cuid())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
+  id          String          @id @default(cuid())
+  tenantId    String
   title       String
   slug        String
   description String?
-  status      ProductStatus @default(DRAFT)
-
-  coverImage String?
-  images     String[] @default([])
-
-  variants Variant[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  status      ProductStatus   @default(DRAFT)
+  coverImage  String?
+  images      String[]        @default([])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  variants    Variant[]
+  options     ProductOption[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, status])
 }
 
-model Variant {
-  id String @id @default(cuid())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
+model ProductOption {
+  id        String               @id @default(cuid())
+  tenantId  String
   productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String // "Color", "Talle", "Material"
+  values    ProductOptionValue[]
+  product   Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  sku       String
-  title     String?
-  price     Int
-  compareAt Int?
+  @@index([tenantId, productId])
+}
 
-  color String?
-  size  String?
+model ProductOptionValue {
+  id            String               @id @default(cuid())
+  optionId      String
+  value         String // "Rojo", "XL", "Aluminio"
+  option        ProductOption        @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variantValues VariantOptionValue[]
 
-  inventories Inventory[]
+  @@index([optionId])
+}
 
-  stock Stock?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Variant {
+  id           String               @id @default(cuid())
+  tenantId     String
+  productId    String
+  sku          String
+  title        String?
+  price        Int
+  compareAt    Int?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  inventories  Inventory[]
+  stock        Stock?
+  product      Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+  optionValues VariantOptionValue[]
 
   @@unique([tenantId, sku])
   @@index([tenantId, productId])
   @@index([price])
 }
 
+model VariantOptionValue {
+  variantId     String
+  optionValueId String
+  variant       Variant            @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue   ProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, optionValueId])
+}
+
 model Stock {
-  id String @id @default(cuid())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  variantId String  @unique
-  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  quantity Int     @default(0)
-  location String?
-
+  id        String   @id @default(cuid())
+  tenantId  String
+  variantId String   @unique
+  quantity  Int      @default(0)
+  location  String?
   updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  variant   Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
 }
 
 model Location {
-  id String @id @default(cuid())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  name     String
-  city     String?
-  address  String?
-  isActive Boolean @default(true)
-
+  id          String      @id @default(cuid())
+  tenantId    String
+  name        String
+  city        String?
+  address     String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   inventories Inventory[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, name])
   @@index([tenantId, isActive])
 }
 
 model Inventory {
-  id String @id @default(cuid())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  variantId String
-  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
+  id         String   @id @default(cuid())
+  tenantId   String
+  variantId  String
   locationId String
+  quantity   Int      @default(0)
+  updatedAt  DateTime @updatedAt
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  variant    Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  quantity  Int      @default(0)
-  updatedAt DateTime @updatedAt
-
-  @@unique([variantId, locationId]) //permite 1 fila por variante por depósito.
+  @@unique([variantId, locationId])
   @@index([tenantId])
   @@index([variantId])
   @@index([locationId])
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
 }
