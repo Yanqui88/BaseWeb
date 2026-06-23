@@ -77,8 +77,11 @@ Este archivo actúa como el registro oficial de decisiones de diseño, cambios a
 
 ### [Control de Inventario y Multi-Depósito (Locations e Inventory)]
 * **Fecha:** 2026-06-23
-* **Contexto:** Definir la complejidad del inventario: si se requiere soporte para múltiples locales/depósitos físicos o una cantidad global simple por variante de producto.
-* **Decisión:** **Soporte Multi-Depósito Completo**. Se mantendrá la estructura avanzada relacional que permite gestionar inventario por sucursal física. Se utilizarán las entidades `Location` (para registrar locales y depósitos físicos vinculados a un tenant) e `Inventory` (para registrar la cantidad de stock de una `Variant` específica en una `Location` dada). El checkout y el backend utilizarán consultas SQL optimizadas (con joins) para validar la disponibilidad física y permitir al usuario elegir en qué sucursal retirar su pedido si selecciona retiro en local.
+* **Contexto:** Definir la complejidad del inventario: si se requiere soporte para múltiples locales/depósitos físicos o una cantidad global simple por variante de producto. Además, resolver cómo cotizar envíos nacionales cuando el comercio posee sucursales en diferentes ciudades (ej. a 600 km de distancia) sin obligar a traslados físicos imposibles.
+* **Decisión:** **Soporte Multi-Depósito con Selector de Sucursal en Frontend (Stock Localizado)**. Se mantendrá la estructura relacional (`Location` e `Inventory`). En lugar de sumar el stock de forma global, la tienda pública de Next.js (`apps/store`) incorporará un selector en la cabecera para que el comprador elija en qué sucursal realizar su compra (ej. "Sucursal Rosario" vs "Sucursal Central").
+  * **Catálogo Dinámico:** El catálogo de productos se filtrará mediante consultas SQL para mostrar únicamente los artículos que tengan stock físico real (`quantity > 0`) en la sucursal seleccionada.
+  * **Logística Localizada:** Las tarifas y etiquetas de envío nacional por correo se cotizarán utilizando el Código Postal del local activo donde el comprador realiza su orden. Cada local podrá configurar individualmente los métodos de envío que ofrece (ej. solo retiro, moto local o correo nacional).
+  * **Navegación Flexible:** Si un producto no tiene stock en el local activo, el frontend le sugerirá al usuario cambiar de sucursal para ver disponibilidad en la central o sucursales alternativas con soporte de envío nacional.
 
 ---
 
