@@ -92,3 +92,4 @@ Usa este registro para sincronizar tus pushes a GitHub. Cada vez que implementem
 | Fecha | Identificador lógico (Commit Message) | Descripción del Hito | Estado |
 | :--- | :--- | :--- | :--- |
 | 2026-06-23 | `feat: bases-arquitectura-bitacora` | Definición de las bases técnicas del proyecto (SQL Puro, Postgres RLS, Next.js compartido, MP OAuth, Andreani, node-pg-migrate). | **Pendiente de Push** |
+| 2026-06-30 | `feat: migrar-sql-puro-rls` | Migración de base de datos de Prisma a SQL Puro, habilitación de RLS en Postgres, node-pg-migrate, DbService con AsyncLocalStorage, seed en SQL Puro y refactorización de PublicController. | **Pendiente de Push** |

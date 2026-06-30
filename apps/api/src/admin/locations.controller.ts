@@ -9,7 +9,7 @@ import {
   Post,
   Put,
 } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { DbService } from "../db/db.service";
 
 type CreateLocationDto = {
   name: string;
@@ -22,90 +22,101 @@ type UpdateLocationDto = Partial<CreateLocationDto>;
 
 @Controller("admin")
 export class AdminLocationsController {
-  constructor(private prisma: PrismaService) {}
-
-  private async getTenantIdOr404(tenantSlug: string): Promise<string> {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true },
-    });
-    if (!tenant) throw new NotFoundException("Tenant not found");
-    return tenant.id;
-  }
+  constructor(private db: DbService) {}
 
   @Get(":tenantSlug/locations")
-  async list(@Param("tenantSlug") tenantSlug: string) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
-    const items = await this.prisma.location.findMany({
-      where: { tenantId },
-      orderBy: [{ isActive: "desc" }, { name: "asc" }],
-    });
-    return { items };
+  async list(@Param("tenantSlug") _tenantSlug: string) {
+    const result = await this.db.query(
+      `SELECT id, name, city, address,
+              is_active AS "isActive",
+              created_at AS "createdAt",
+              updated_at AS "updatedAt"
+       FROM locations
+       ORDER BY is_active DESC, name ASC`,
+    );
+    return { items: result.rows };
   }
 
   @Post(":tenantSlug/locations")
   async create(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Body() dto: CreateLocationDto,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) throw new BadRequestException("Tenant context is required");
 
-    return this.prisma.location.create({
-      data: {
-        tenantId,
-        name: dto.name,
-        city: dto.city ?? null,
-        address: dto.address ?? null,
-        isActive: dto.isActive ?? true,
-      },
-    });
+    const result = await this.db.query(
+      `INSERT INTO locations (id, tenant_id, name, city, address, is_active)
+       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
+       RETURNING id, name, city, address,
+                 is_active AS "isActive",
+                 created_at AS "createdAt",
+                 updated_at AS "updatedAt"`,
+      [tenantId, dto.name, dto.city ?? null, dto.address ?? null, dto.isActive ?? true],
+    );
+    return result.rows[0];
   }
 
   @Put(":tenantSlug/locations/:locationId")
   async update(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("locationId") locationId: string,
     @Body() dto: UpdateLocationDto,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    // Verificar existencia (RLS filtra por tenant automáticamente)
+    const exists = await this.db.query(
+      `SELECT id FROM locations WHERE id = $1 LIMIT 1`,
+      [locationId],
+    );
+    if (exists.rows.length === 0) throw new NotFoundException("Location not found");
 
-    const exists = await this.prisma.location.findFirst({
-      where: { id: locationId, tenantId },
-      select: { id: true },
-    });
-    if (!exists) throw new NotFoundException("Location not found");
+    // Construir cláusulas SET dinámicamente
+    const sets: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
 
-    return this.prisma.location.update({
-      where: { id: locationId },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.city !== undefined ? { city: dto.city } : {}),
-        ...(dto.address !== undefined ? { address: dto.address } : {}),
-        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
-      },
-    });
+    if (dto.name !== undefined) { sets.push(`name = $${idx++}`); values.push(dto.name); }
+    if (dto.city !== undefined) { sets.push(`city = $${idx++}`); values.push(dto.city); }
+    if (dto.address !== undefined) { sets.push(`address = $${idx++}`); values.push(dto.address); }
+    if (dto.isActive !== undefined) { sets.push(`is_active = $${idx++}`); values.push(dto.isActive); }
+
+    // Siempre actualizar updated_at
+    sets.push(`updated_at = NOW()`);
+    values.push(locationId);
+
+    const result = await this.db.query(
+      `UPDATE locations SET ${sets.join(", ")}
+       WHERE id = $${idx}
+       RETURNING id, name, city, address,
+                 is_active AS "isActive",
+                 created_at AS "createdAt",
+                 updated_at AS "updatedAt"`,
+      values,
+    );
+    return result.rows[0];
   }
 
   @Delete(":tenantSlug/locations/:locationId")
   async remove(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("locationId") locationId: string,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    // Verificar existencia
+    const exists = await this.db.query(
+      `SELECT id FROM locations WHERE id = $1 LIMIT 1`,
+      [locationId],
+    );
+    if (exists.rows.length === 0) throw new NotFoundException("Location not found");
 
-    const exists = await this.prisma.location.findFirst({
-      where: { id: locationId, tenantId },
-      select: { id: true },
-    });
-    if (!exists) throw new NotFoundException("Location not found");
-
-    // N>0: no borrar el último depósito
-    const count = await this.prisma.location.count({ where: { tenantId } });
-    if (count <= 1) {
+    // No permitir borrar la última sucursal
+    const countResult = await this.db.query(
+      `SELECT COUNT(*)::int AS count FROM locations`,
+    );
+    if (countResult.rows[0].count <= 1) {
       throw new BadRequestException("You must keep at least one location");
     }
 
-    await this.prisma.location.delete({ where: { id: locationId } });
+    await this.db.query(`DELETE FROM locations WHERE id = $1`, [locationId]);
     return { ok: true };
   }
 }

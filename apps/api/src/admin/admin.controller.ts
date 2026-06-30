@@ -10,7 +10,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
-import { PrismaService } from "../prisma/prisma.service";
+import { DbService } from "../db/db.service";
 import { diskStorage } from "multer";
 import { extname, join } from "path";
 import { readdir } from "fs/promises";
@@ -29,51 +29,98 @@ type UpsertBannerDto = {
 
 @Controller("admin")
 export class AdminController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DbService) {}
 
   @Get(":tenantSlug/home/banner")
-  async getBanner(@Param("tenantSlug") tenantSlug: string) {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true },
-    });
-    if (!tenant) return null;
+  async getBanner(@Param("tenantSlug") _tenantSlug: string) {
+    // RLS inyectará automáticamente el filtro por tenant_id
+    const query = `
+      SELECT 
+        id,
+        tenant_id AS "tenantId",
+        desktop_image_url AS "desktopImageUrl",
+        mobile_image_url AS "mobileImageUrl",
+        href,
+        alt,
+        badge,
+        title,
+        subtitle,
+        button_text AS "buttonText",
+        is_active AS "isActive",
+        sort_order AS "sortOrder",
+        created_at AS "createdAt",
+        updated_at AS "updatedAt"
+      FROM home_banners
+      ORDER BY sort_order ASC, created_at DESC
+      LIMIT 1
+    `;
 
-    return this.prisma.homeBanner.findFirst({
-      where: { tenantId: tenant.id },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-    });
+    const result = await this.db.query(query);
+    return result.rows[0] || null;
   }
 
   @Put(":tenantSlug/home/banner")
   async upsertBanner(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Body() dto: UpsertBannerDto
   ) {
-    const tenant = await this.prisma.tenant.upsert({
-      where: { slug: tenantSlug },
-      update: {},
-      create: { slug: tenantSlug, name: `${tenantSlug} Store` },
-      select: { id: true },
-    });
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException("No tenant context");
+    }
 
-    // MVP: 1 banner principal
-    await this.prisma.homeBanner.deleteMany({ where: { tenantId: tenant.id } });
+    // Ejecutamos en una transacción para que la limpieza e inserción ocurran atómicamente
+    return this.db.transaction(async (client) => {
+      // Eliminar banners existentes del tenant (RLS restringe a este tenant)
+      await client.query("DELETE FROM home_banners");
 
-    return this.prisma.homeBanner.create({
-      data: {
-        tenantId: tenant.id,
-        desktopImageUrl: dto.desktopImageUrl,
-        mobileImageUrl: dto.mobileImageUrl,
-        href: dto.href ?? null,
-        alt: dto.alt ?? null,
-        badge: dto.badge ?? null,
-        title: dto.title ?? null,
-        subtitle: dto.subtitle ?? null,
-        buttonText: dto.buttonText ?? null,
-        isActive: dto.isActive ?? true,
-        sortOrder: 0,
-      },
+      // Insertar el nuevo banner
+      const query = `
+        INSERT INTO home_banners (
+          id,
+          tenant_id,
+          desktop_image_url,
+          mobile_image_url,
+          href,
+          alt,
+          badge,
+          title,
+          subtitle,
+          button_text,
+          is_active,
+          sort_order
+        ) VALUES (
+          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+        ) RETURNING 
+          id,
+          tenant_id AS "tenantId",
+          desktop_image_url AS "desktopImageUrl",
+          mobile_image_url AS "mobileImageUrl",
+          href,
+          alt,
+          badge,
+          title,
+          subtitle,
+          button_text AS "buttonText",
+          is_active AS "isActive",
+          sort_order AS "sortOrder"
+      `;
+
+      const result = await client.query(query, [
+        tenantId,
+        dto.desktopImageUrl,
+        dto.mobileImageUrl,
+        dto.href ?? null,
+        dto.alt ?? null,
+        dto.badge ?? null,
+        dto.title ?? null,
+        dto.subtitle ?? null,
+        dto.buttonText ?? null,
+        dto.isActive ?? true,
+        0,
+      ]);
+
+      return result.rows[0];
     });
   }
 
@@ -92,7 +139,6 @@ export class AdminController {
       }),
       limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
       fileFilter: (_req, file, cb) => {
-        // MVP: cualquier image/*
         if (!file.mimetype.startsWith("image/")) {
           return cb(new Error("Only image uploads are allowed"), false);
         }
@@ -108,7 +154,6 @@ export class AdminController {
     return { url: `/uploads/${file.filename}` };
   }
 
-
   @Get(":tenantSlug/uploads")
   async listUploads(@Param("tenantSlug") _tenantSlug: string) {
     const dir = join(process.cwd(), "uploads");
@@ -117,7 +162,7 @@ export class AdminController {
     const images = files
       .filter((f) => /\.(png|jpe?g|webp|gif|svg)$/i.test(f))
       .sort()
-      .reverse(); // los más nuevos primero (aprox por timestamp en filename)
+      .reverse();
 
     return images.map((name) => ({
       name,

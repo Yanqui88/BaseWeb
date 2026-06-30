@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -6,70 +7,80 @@ import {
   Param,
   Put,
 } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { DbService } from "../db/db.service";
 
 type SetInventoryDto = { quantity: number };
 
 @Controller("admin")
 export class AdminInventoryController {
-  constructor(private prisma: PrismaService) {}
-
-  private async getTenantIdOr404(tenantSlug: string): Promise<string> {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true },
-    });
-    if (!tenant) throw new NotFoundException("Tenant not found");
-    return tenant.id;
-  }
+  constructor(private db: DbService) {}
 
   @Get(":tenantSlug/variants/:variantId/inventory")
   async list(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("variantId") variantId: string,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    // Verificar que la variante existe (RLS filtra por tenant)
+    const variant = await this.db.query(
+      `SELECT id FROM variants WHERE id = $1 LIMIT 1`,
+      [variantId],
+    );
+    if (variant.rows.length === 0) throw new NotFoundException("Variant not found");
 
-    const variant = await this.prisma.variant.findFirst({
-      where: { id: variantId, tenantId },
-      select: { id: true },
-    });
-    if (!variant) throw new NotFoundException("Variant not found");
-
-    const items = await this.prisma.inventory.findMany({
-      where: { tenantId, variantId },
-      include: { location: true },
-      orderBy: [{ location: { name: "asc" } }],
-    });
-
-    return { items };
+    // Traer inventarios con nombre de sucursal
+    const result = await this.db.query(
+      `SELECT i.id,
+              i.variant_id AS "variantId",
+              i.location_id AS "locationId",
+              i.quantity,
+              i.updated_at AS "updatedAt",
+              l.name AS "locationName"
+       FROM inventories i
+       JOIN locations l ON l.id = i.location_id
+       WHERE i.variant_id = $1
+       ORDER BY l.name ASC`,
+      [variantId],
+    );
+    return { items: result.rows };
   }
 
   @Put(":tenantSlug/variants/:variantId/inventory/:locationId")
   async set(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("variantId") variantId: string,
     @Param("locationId") locationId: string,
     @Body() dto: SetInventoryDto,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) throw new BadRequestException("Tenant context is required");
 
-    const variant = await this.prisma.variant.findFirst({
-      where: { id: variantId, tenantId },
-      select: { id: true },
-    });
-    if (!variant) throw new NotFoundException("Variant not found");
+    // Verificar que la variante existe
+    const variant = await this.db.query(
+      `SELECT id FROM variants WHERE id = $1 LIMIT 1`,
+      [variantId],
+    );
+    if (variant.rows.length === 0) throw new NotFoundException("Variant not found");
 
-    const location = await this.prisma.location.findFirst({
-      where: { id: locationId, tenantId },
-      select: { id: true },
-    });
-    if (!location) throw new NotFoundException("Location not found");
+    // Verificar que la sucursal existe
+    const location = await this.db.query(
+      `SELECT id FROM locations WHERE id = $1 LIMIT 1`,
+      [locationId],
+    );
+    if (location.rows.length === 0) throw new NotFoundException("Location not found");
 
-    return this.prisma.inventory.upsert({
-      where: { variantId_locationId: { variantId, locationId } },
-      update: { quantity: dto.quantity },
-      create: { tenantId, variantId, locationId, quantity: dto.quantity },
-    });
+    // UPSERT: insertar o actualizar el inventario
+    const result = await this.db.query(
+      `INSERT INTO inventories (id, tenant_id, variant_id, location_id, quantity)
+       VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
+       ON CONFLICT (variant_id, location_id) DO UPDATE
+         SET quantity = $4, updated_at = NOW()
+       RETURNING id,
+                 variant_id AS "variantId",
+                 location_id AS "locationId",
+                 quantity,
+                 updated_at AS "updatedAt"`,
+      [tenantId, variantId, locationId, dto.quantity],
+    );
+    return result.rows[0];
   }
 }

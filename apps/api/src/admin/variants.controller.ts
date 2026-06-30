@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -7,162 +8,118 @@ import {
   Post,
   Put,
 } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { DbService } from "../db/db.service";
 
 type CreateVariantDto = {
-  sku: string;          // obligatorio
-  price: number;        // centavos
-
+  sku: string;
+  price: number;
   title?: string | null;
   compareAt?: number | null;
-  color?: string | null;
-  size?: string | null;
 };
 
 type UpdateVariantDto = {
   sku?: string;
   price?: number;
-
   title?: string | null;
   compareAt?: number | null;
-  color?: string | null;
-  size?: string | null;
-};
-
-type UpdateStockDto = {
-  quantity: number;
-  location?: string | null; // opcional (por ahora es un string, luego lo migraremos a depósitos reales)
 };
 
 @Controller("admin")
 export class AdminVariantsController {
-  constructor(private prisma: PrismaService) {}
-
-  private async getTenantIdOr404(tenantSlug: string): Promise<string> {
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true },
-    });
-    if (!tenant) throw new NotFoundException("Tenant not found");
-    return tenant.id;
-  }
+  constructor(private db: DbService) {}
 
   @Get(":tenantSlug/products/:productId/variants")
   async listVariants(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("productId") productId: string,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    // Verificar que el producto existe (RLS filtra por tenant)
+    const product = await this.db.query(
+      `SELECT id FROM products WHERE id = $1 LIMIT 1`,
+      [productId],
+    );
+    if (product.rows.length === 0) throw new NotFoundException("Product not found");
 
-    const product = await this.prisma.product.findFirst({
-      where: { id: productId, tenantId },
-      select: { id: true },
-    });
-    if (!product) throw new NotFoundException("Product not found");
-
-    const variants = await this.prisma.variant.findMany({
-      where: { productId, tenantId },
-      include: { stock: true },
-      orderBy: { createdAt: "asc" },
-    });
-
-    return { items: variants };
+    // Traer variantes con stock total calculado desde inventories
+    const result = await this.db.query(
+      `SELECT v.id, v.sku, v.title, v.price,
+              v.compare_at AS "compareAt",
+              v.created_at AS "createdAt",
+              v.updated_at AS "updatedAt",
+              COALESCE(SUM(i.quantity), 0)::int AS "stockTotal"
+       FROM variants v
+       LEFT JOIN inventories i ON i.variant_id = v.id
+       WHERE v.product_id = $1
+       GROUP BY v.id, v.created_at
+       ORDER BY v.created_at ASC`,
+      [productId],
+    );
+    return { items: result.rows };
   }
 
   @Post(":tenantSlug/products/:productId/variants")
   async createVariant(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("productId") productId: string,
     @Body() dto: CreateVariantDto,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) throw new BadRequestException("Tenant context is required");
 
-    const product = await this.prisma.product.findFirst({
-      where: { id: productId, tenantId },
-      select: { id: true },
-    });
-    if (!product) throw new NotFoundException("Product not found");
+    // Verificar que el producto existe
+    const product = await this.db.query(
+      `SELECT id FROM products WHERE id = $1 LIMIT 1`,
+      [productId],
+    );
+    if (product.rows.length === 0) throw new NotFoundException("Product not found");
 
-    return this.prisma.variant.create({
-      data: {
-        tenantId,
-        productId,
-        sku: dto.sku,
-        price: dto.price,
-        title: dto.title ?? null,
-        compareAt: dto.compareAt ?? null,
-        color: dto.color ?? null,
-        size: dto.size ?? null,
-        stock: {
-          create: {
-            tenantId,
-            quantity: 0,
-            location: null,
-          },
-        },
-      },
-      include: { stock: true },
-    });
+    const result = await this.db.query(
+      `INSERT INTO variants (id, tenant_id, product_id, sku, title, price, compare_at)
+       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
+       RETURNING id, sku, title, price,
+                 compare_at AS "compareAt",
+                 created_at AS "createdAt"`,
+      [tenantId, productId, dto.sku, dto.title ?? null, dto.price, dto.compareAt ?? null],
+    );
+    return result.rows[0];
   }
 
   @Put(":tenantSlug/variants/:variantId")
   async updateVariant(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
     @Param("variantId") variantId: string,
     @Body() dto: UpdateVariantDto,
   ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    // Verificar existencia (RLS filtra por tenant)
+    const exists = await this.db.query(
+      `SELECT id FROM variants WHERE id = $1 LIMIT 1`,
+      [variantId],
+    );
+    if (exists.rows.length === 0) throw new NotFoundException("Variant not found");
 
-    const exists = await this.prisma.variant.findFirst({
-      where: { id: variantId, tenantId },
-      select: { id: true },
-    });
-    if (!exists) throw new NotFoundException("Variant not found");
+    // Construir cláusulas SET dinámicamente
+    const sets: string[] = [];
+    const values: any[] = [];
+    let idx = 1;
 
-    return this.prisma.variant.update({
-      where: { id: variantId },
-      data: {
-        ...(dto.sku !== undefined ? { sku: dto.sku } : {}),
-        ...(dto.price !== undefined ? { price: dto.price } : {}),
-        ...(dto.title !== undefined ? { title: dto.title } : {}),
-        ...(dto.compareAt !== undefined ? { compareAt: dto.compareAt } : {}),
-        ...(dto.color !== undefined ? { color: dto.color } : {}),
-        ...(dto.size !== undefined ? { size: dto.size } : {}),
-      },
-    });
-  }
+    if (dto.sku !== undefined) { sets.push(`sku = $${idx++}`); values.push(dto.sku); }
+    if (dto.price !== undefined) { sets.push(`price = $${idx++}`); values.push(dto.price); }
+    if (dto.title !== undefined) { sets.push(`title = $${idx++}`); values.push(dto.title); }
+    if (dto.compareAt !== undefined) { sets.push(`compare_at = $${idx++}`); values.push(dto.compareAt); }
 
-  @Put(":tenantSlug/variants/:variantId/stock")
-  async updateStock(
-    @Param("tenantSlug") tenantSlug: string,
-    @Param("variantId") variantId: string,
-    @Body() dto: UpdateStockDto,
-  ) {
-    const tenantId = await this.getTenantIdOr404(tenantSlug);
+    // Siempre actualizar updated_at
+    sets.push(`updated_at = NOW()`);
+    values.push(variantId);
 
-    const variant = await this.prisma.variant.findFirst({
-      where: { id: variantId, tenantId },
-      include: { stock: true },
-    });
-    if (!variant) throw new NotFoundException("Variant not found");
-
-    if (!variant.stock) {
-      return this.prisma.stock.create({
-        data: {
-          tenantId,
-          variantId,
-          quantity: dto.quantity,
-          location: dto.location ?? null,
-        },
-      });
-    }
-
-    return this.prisma.stock.update({
-      where: { id: variant.stock.id },
-      data: {
-        quantity: dto.quantity,
-        ...(dto.location !== undefined ? { location: dto.location } : {}),
-      },
-    });
+    const result = await this.db.query(
+      `UPDATE variants SET ${sets.join(", ")}
+       WHERE id = $${idx}
+       RETURNING id, sku, title, price,
+                 compare_at AS "compareAt",
+                 created_at AS "createdAt",
+                 updated_at AS "updatedAt"`,
+      values,
+    );
+    return result.rows[0];
   }
 }

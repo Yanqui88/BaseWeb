@@ -1,59 +1,49 @@
 import { Controller, Get, Param, Query } from "@nestjs/common";
-import { PrismaService } from "../prisma/prisma.service";
+import { DbService } from "../db/db.service";
 
 @Controller("public")
 export class PublicProductsController {
-  constructor(private prisma: PrismaService) {}
+  constructor(private db: DbService) {}
 
   @Get(":tenantSlug/products")
   async listProducts(
-    @Param("tenantSlug") tenantSlug: string,
+    @Param("tenantSlug") _tenantSlug: string,
+    @Query("locationId") locationId?: string,
     @Query("limit") limitRaw?: string,
   ) {
     const limit = Math.min(Math.max(Number(limitRaw ?? "24"), 1), 100);
 
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { slug: tenantSlug },
-      select: { id: true },
-    });
+    // Consulta SQL Puro.
+    // Buscamos productos activos, uniendo sus variantes e inventarios.
+    // Si se pasa locationId, se filtra el stock de ese local; si es null, se verifica el stock global.
+    // RLS inyectará automáticamente el filtro por tenant_id detrás de escena.
+    const query = `
+      SELECT 
+        p.id,
+        p.title,
+        p.slug,
+        p.cover_image AS "coverImage",
+        MIN(v.price) AS "minPrice"
+      FROM products p
+      INNER JOIN variants v ON v.product_id = p.id
+      INNER JOIN inventories i ON i.variant_id = v.id
+      WHERE p.status = 'ACTIVE'
+        AND ($1::text IS NULL OR i.location_id = $1)
+        AND i.quantity > 0
+      GROUP BY p.id, p.title, p.slug, p.cover_image, p.created_at
+      ORDER BY p.created_at DESC
+      LIMIT $2
+    `;
 
-    if (!tenant) return { items: [] };
+    const result = await this.db.query(query, [locationId || null, limit]);
 
-    const products = await this.prisma.product.findMany({
-      where: { tenantId: tenant.id, status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      select: {
-        id: true,
-        title: true,
-        slug: true,
-        coverImage: true,
-        variants: {
-          select: {
-            price: true,
-            inventories: { select: { quantity: true } },
-          },
-        },
-      },
-    });
-
-    const items = products.map((p) => {
-      const pricesInStock = p.variants
-        .filter(
-          (v) => v.inventories.reduce((a, i) => a + i.quantity, 0) > 0,
-        )
-        .map((v) => v.price);
-
-      const minPrice = pricesInStock.length ? Math.min(...pricesInStock) : null;
-
-      return {
-        id: p.id,
-        title: p.title,
-        slug: p.slug,
-        coverImage: p.coverImage,
-        minPrice,
-      };
-    });
+    const items = result.rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      slug: row.slug,
+      coverImage: row.coverImage,
+      minPrice: row.minPrice !== null ? Number(row.minPrice) : null,
+    }));
 
     return { items };
   }
