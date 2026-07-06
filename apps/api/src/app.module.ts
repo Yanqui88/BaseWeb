@@ -11,9 +11,12 @@ import { ServeStaticModule } from "@nestjs/serve-static";
 import { join } from "path";
 import { PublicProductsController } from "./public/products.controller";
 import { PublicProductDetailController } from "./public/product-detail.controller";
+import { PublicTenantModule } from "./public/public-tenant.module";
+import { UploadModule } from "./upload/upload.module";
 
 @Module({
   imports: [
+    // Sirve la carpeta uploads/ bajo la ruta pública /uploads
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), "uploads"),
       serveRoot: "/uploads",
@@ -21,6 +24,8 @@ import { PublicProductDetailController } from "./public/product-detail.controlle
 
     DbModule,
     AdminModule,
+    PublicTenantModule,
+    UploadModule,
   ],
   controllers: [
     AppController,

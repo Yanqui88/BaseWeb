@@ -1,16 +1,19 @@
 # Roadmap de Implementación - ProyectoWeb Multi-Tenant
 
 ## Hito 1: Infraestructura Base y Aislamiento de Datos (SQL Puro)
-- [ ] Inicializar el pool de conexiones con `pg-pool` en el DbService de `apps/api`.
-- [ ] Configurar `node-pg-migrate` y crear el script de migración para las tablas base (usuarios, tenants, productos).
-- [ ] Implementar políticas de seguridad Row-Level Security (RLS) en PostgreSQL a nivel de motor.
-- [ ] Crear el middleware en NestJS que inyecta el `tenantId` en las variables de sesión de SQL por cada petición.
+- [x] Inicializar el pool de conexiones con `pg` nativo en el DbService de `apps/api`.
+- [x] Configurar `node-pg-migrate` con scripts `migrate:create`, `migrate:up`, `migrate:down` en `package.json`.
+- [x] Configurar y crear la primera migración SQL (tablas de `users` y `tenants`).
+- [x] Implementar políticas de seguridad Row-Level Security (RLS) en PostgreSQL a nivel de motor (migración `1783053658341_init-schema.ts`).
+- [x] Crear el interceptor `TenantInterceptor` en NestJS que inyecta `tenantId` e `isSuperAdmin` en el ALS por cada petición.
+- [x] Implementar `AsyncLocalStorage<RlsContext>` en `DbService` con `applyRlsSettings()` para `SET LOCAL` automático.
 
 ## Hito 2: Arquitectura del Frontend y Marca Blanca
-- [ ] Configurar el enrutador de Next.js en `apps/store` para extraer el subdominio/dominio de la cabecera HTTP 'host'.
-- [ ] Crear el servicio de hidratación dinámica (inyectar variables CSS de Tailwind según el tenant).
-- [ ] Desarrollar la interfaz inicial del Panel de Administración en `apps/admin` (Gestión de productos y configuración visual).
-- [ ] Implementar la subida de imágenes en el backend forzando la conversión a '.webp' mediante la librería `sharp`.
+- [x] Configurar el enrutador de Next.js en `apps/store` para extraer el subdominio/dominio de la cabecera HTTP 'host'.
+- [x] Crear el servicio de hidratación dinámica (inyectar variables CSS de Tailwind según el tenant).
+- [x] Construir el puente de resolución en `apps/api`: `PublicTenantInterceptor` (header `x-tenant-domain` → SELECT `tenants` → `als.run({ tenantId })`) + `PublicTenantService` + `PublicTenantController` (`GET /public/tenant/config`) + `PublicTenantModule`. Compilación `nest build` exitosa.
+- [x] Desarrollar la interfaz inicial del Panel de Administración en `apps/admin` (Gestión de productos y configuración visual).
+- [x] Implementar la subida de imágenes en el backend forzando la conversión a '.webp' mediante la librería `sharp`.
 
 ## Hito 3: Autenticación y Sesiones
 - [ ] Diseñar el esquema de base de datos para credenciales y tokens de sesión.
