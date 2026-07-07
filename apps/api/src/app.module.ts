@@ -14,6 +14,9 @@ import { PublicProductDetailController } from "./public/product-detail.controlle
 import { PublicTenantModule } from "./public/public-tenant.module";
 import { UploadModule } from "./upload/upload.module";
 import { AuthModule } from "./auth/auth.module";
+import { MpAuthModule } from "./mp-auth/mp-auth.module";
+import { MpWebhooksModule } from "./mp-webhooks/mp-webhooks.module";
+import { CheckoutModule } from "./checkout/checkout.module";
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { AuthModule } from "./auth/auth.module";
     PublicTenantModule,
     UploadModule,
     AuthModule,
+    MpAuthModule,
+    MpWebhooksModule,
+    CheckoutModule,
   ],
   controllers: [
     AppController,

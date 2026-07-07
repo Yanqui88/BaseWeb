@@ -20,6 +20,11 @@ Este archivo actúa como el registro oficial de decisiones de diseño, cambios a
 
 ## 🛠️ 2. Historial de Decisiones de Arquitectura
 
+### [Normalización de Base de Datos]
+* **Fecha:** 2026-07-07
+* **Contexto:** Mantener un modelo de datos robusto, evitar redundancias y anomalías en la actualización/inserción dentro del entorno Multi-Tenant con PostgreSQL.
+* **Decisión:** **Tercera Forma Normal (3NF) o Forma Normal de Boyce-Codd (BCNF) como mínimo**. Se aplicará de forma estricta en el diseño de todas las entidades, asegurando dependencias funcionales correctas y aislando componentes en tablas relacionales apropiadas.
+
 ### [Base de Datos 1 - Selección de ORM/Query Builder]
 * **Fecha:** 2026-06-23
 * **Contexto:** Se venía utilizando Prisma v7 configurado de manera automática por asistentes de IA. El desarrollador tiene conocimientos de SQL/Postgres y busca mayor control y eficiencia para el multi-tenant.
@@ -103,3 +108,4 @@ Usa este registro para sincronizar tus pushes a GitHub. Cada vez que implementem
 | 2026-07-06 | `feat: sessions-rls-migration` | **[Hito 3 - DB]** Creación de la migración `1783368384423_create-sessions-table.ts` con la tabla `sessions`: PK `id UUID DEFAULT gen_random_uuid()`, campos `tenant_id`, `user_id`, `token` (VARCHAR UNIQUE), `expires_at` y `created_at`. FK compuesta sobre `users(id, tenant_id)`. RLS habilitado, forzado, con política `sessions_tenant_isolation_policy`. Rollback verificado. | **Completado** |
 | 2026-07-07 | `feat: auth-login-backend` | **[Hito 3 - API]** Creación de `AuthModule`, `AuthService` y `AuthController` en `apps/api/src/auth`. Login con `bcrypt.compare`, generación de Access Token JWT (15m) via `@nestjs/jwt` y Refresh Token (`crypto.randomBytes`). INSERT en `sessions` bajo contexto `tenantId` de ALS. `pnpm-workspace.yaml` actualizado para habilitar build scripts de `bcrypt`. Build exitoso. | **Completado** |
 | 2026-07-07 | `feat: admin-login-middleware` | **[Hito 3 Completado]** Implementación del flujo completo de autenticación en `apps/admin`. Server Action `auth.actions.ts` para login con cookies `httpOnly`. Componente `LoginForm.tsx` (client) con diseño espectacular. Ruta pública `/login/page.tsx`. Middleware global en `src/middleware.ts` que protege todas las rutas y redirige a `/login` sin `access_token`. Build verificado. | **Completado** |
+| 2026-07-07 | `feat: mercado-pago-integration` | **[Hito 4 Completado]** Implementación completa de la pasarela Mercado Pago. 1) Tablas SQL con RLS (`tenant_mp_credentials`, `mp_transactions`). 2) OAuth NestJS para vincular cuentas (`POST /mp-auth/link`). 3) Webhooks seguros vía ALS. 4) Guest Checkout premium en Next.js con Tailwind v4 y Glassmorphism conectado a `POST /checkout/preference`. | **Completado** |

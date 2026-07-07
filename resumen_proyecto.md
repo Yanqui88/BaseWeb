@@ -14,3 +14,4 @@ SaaS de Ecommerce Multi-Tenant modular de gran escala desarrollado por un único
 2. Aislamiento estricto de datos de Tenants mediante Row-Level Security (RLS) en Postgres a nivel de motor.
 3. Enrutamiento dinámico en la tienda pública mapeando el subdominio/dominio desde el header 'host' en tiempo de ejecución.
 4. Procesamiento local de imágenes multimedia utilizando la librería 'sharp' para conversión forzada a WebP.
+5. Normalización estricta de la base de datos garantizando al menos Tercera Forma Normal (3NF) o Forma Normal de Boyce-Codd (BCNF).

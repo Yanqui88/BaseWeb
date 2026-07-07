@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { Client } from "pg";
+import { encrypt } from "../utils/crypto.util.js";
 
 async function main() {
   const client = new Client({
@@ -13,6 +14,7 @@ async function main() {
     await client.query("BEGIN");
 
     // 1. Limpieza de datos en orden para respetar claves foráneas
+    await client.query("DELETE FROM tenant_mp_credentials");
     await client.query("DELETE FROM variant_option_values");
     await client.query("DELETE FROM inventories");
     await client.query("DELETE FROM locations");
@@ -24,21 +26,32 @@ async function main() {
     await client.query("DELETE FROM users");
     await client.query("DELETE FROM tenants");
 
-    // 2. Crear Tenant 'default'
-    const tenantId = "tenant-default-id";
+    // 2. Crear Tenant 'default' con dominio 'localhost'
+    const tenantId = "d3b07384-d113-4ec2-a5d6-c8402b89f816";
     await client.query(
-      "INSERT INTO tenants (id, slug, name) VALUES ($1, $2, $3)",
-      [tenantId, "default", "Default Store"]
+      `INSERT INTO tenants (id, slug, name, domain, primary_color, secondary_color) 
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [tenantId, "default", "Default Store", "localhost", "#3b82f6", "#1e3a8a"]
     );
     console.log("Tenant 'default' creado.");
 
+    // 2.5 Crear credenciales MP mock para el Tenant
+    const encryptedToken = encrypt("APP_USR-mock-token-12345");
+    await client.query(
+      `INSERT INTO tenant_mp_credentials (tenant_id, mp_user_id, access_token_encrypted, public_key) 
+       VALUES ($1, $2, $3, $4)`,
+      [tenantId, "mp-user-mock-1", encryptedToken, "APP_USR-mock-public-key-12345"]
+    );
+    console.log("Credenciales Mercado Pago mock creadas.");
+
     // 3. Crear Banner de prueba activo
+    const bannerId = "d3b07384-d113-4ec2-a5d6-c8402b89f817";
     await client.query(
       `INSERT INTO home_banners (
         id, tenant_id, desktop_image_url, mobile_image_url, href, alt, badge, title, subtitle, button_text, is_active, sort_order
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
-        "banner-1",
+        bannerId,
         tenantId,
         "https://picsum.photos/seed/proyectoweb-desktop/1600/500",
         "https://picsum.photos/seed/proyectoweb-mobile/900/1200",
@@ -55,7 +68,7 @@ async function main() {
     console.log("Banner de prueba creado.");
 
     // 4. Crear Sucursal física principal
-    const locationId = "location-central-id";
+    const locationId = "d3b07384-d113-4ec2-a5d6-c8402b89f818";
     await client.query(
       "INSERT INTO locations (id, tenant_id, name, city, address) VALUES ($1, $2, $3, $4, $5)",
       [locationId, tenantId, "Sucursal Central", "Buenos Aires", "Av. Cabildo 1234"]
@@ -63,7 +76,7 @@ async function main() {
     console.log("Sucursal Central creada.");
 
     // 5. Crear Producto: 'Remera Básica'
-    const productId = "product-remera-id";
+    const productId = "d3b07384-d113-4ec2-a5d6-c8402b89f819";
     await client.query(
       `INSERT INTO products (id, tenant_id, title, slug, status, cover_image, images) 
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -80,8 +93,8 @@ async function main() {
     console.log("Producto 'Remera Básica' creado.");
 
     // 6. Crear Opciones (Color y Talle) para el Producto
-    const optionColorId = "option-color-id";
-    const optionTalleId = "option-talle-id";
+    const optionColorId = "d3b07384-d113-4ec2-a5d6-c8402b89f820";
+    const optionTalleId = "d3b07384-d113-4ec2-a5d6-c8402b89f821";
     await client.query(
       "INSERT INTO product_options (id, tenant_id, product_id, name) VALUES ($1, $2, $3, $4)",
       [optionColorId, tenantId, productId, "Color"]
@@ -92,9 +105,9 @@ async function main() {
     );
 
     // 7. Crear Valores de las Opciones
-    const valNegroId = "val-negro-id";
-    const valSId = "val-s-id";
-    const valMId = "val-m-id";
+    const valNegroId = "d3b07384-d113-4ec2-a5d6-c8402b89f822";
+    const valSId = "d3b07384-d113-4ec2-a5d6-c8402b89f823";
+    const valMId = "d3b07384-d113-4ec2-a5d6-c8402b89f824";
     await client.query(
       "INSERT INTO product_option_values (id, option_id, value) VALUES ($1, $2, $3)",
       [valNegroId, optionColorId, "Negro"]
@@ -110,8 +123,8 @@ async function main() {
     console.log("Valores de opción creados (Negro, S, M).");
 
     // 8. Crear Variantes del Producto
-    const variantSId = "variant-s-id";
-    const variantMId = "variant-m-id";
+    const variantSId = "d3b07384-d113-4ec2-a5d6-c8402b89f825";
+    const variantMId = "d3b07384-d113-4ec2-a5d6-c8402b89f826";
     await client.query(
       `INSERT INTO variants (id, tenant_id, product_id, sku, title, price) 
        VALUES ($1, $2, $3, $4, $5, $6)`,
@@ -145,8 +158,8 @@ async function main() {
     console.log("Variantes mapeadas con sus atributos.");
 
     // 10. Registrar Stock de inventario en la Sucursal Central
-    const invSId = "inv-s-id";
-    const invMId = "inv-m-id";
+    const invSId = "d3b07384-d113-4ec2-a5d6-c8402b89f827";
+    const invMId = "d3b07384-d113-4ec2-a5d6-c8402b89f828";
     await client.query(
       `INSERT INTO inventories (id, tenant_id, variant_id, location_id, quantity) 
        VALUES ($1, $2, $3, $4, $5)`,

@@ -21,10 +21,10 @@
 - [x] Integrar protección de rutas protegidas en `apps/admin` (Next.js).
 
 ## Hito 4: Pasarela de Pagos (Mercado Pago)
-- [ ] Diseñar las tablas SQL de transacciones, suscripciones y configuración de credenciales MP por tenant.
-- [ ] Implementar la integración OAuth de Mercado Pago en `apps/api` para que cada comercio vincule su cuenta.
-- [ ] Crear los endpoints de procesamiento de Webhooks de Mercado Pago.
-- [ ] Maquetar y conectar el flujo de Checkout (Guest Checkout) en `apps/store`.
+- [x] Diseñar las tablas SQL de transacciones, suscripciones y configuración de credenciales MP por tenant.
+- [x] Implementar la integración OAuth de Mercado Pago en `apps/api` para que cada comercio vincule su cuenta.
+- [x] Crear los endpoints de procesamiento de Webhooks de Mercado Pago.
+- [x] Maquetar y conectar el flujo de Checkout (Guest Checkout) en `apps/store`.
 
 ## Hito 5: Logística y Cotización
 - [ ] Integrar el SDK/API de Andreani en el backend para cotización en tiempo real.
