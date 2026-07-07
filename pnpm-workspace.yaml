@@ -5,13 +5,15 @@ packages:
 allowBuilds:
   '@nestjs/core': true
   '@prisma/engines': true
+  bcrypt: true
   prisma: true
-  sharp: set this to true or false
+  sharp: true
   unrs-resolver: true
 
 onlyBuiltDependencies:
   - '@nestjs/core'
   - '@prisma/engines'
+  - bcrypt
   - prisma
   - sharp
   - unrs-resolver

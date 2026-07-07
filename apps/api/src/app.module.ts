@@ -13,6 +13,7 @@ import { PublicProductsController } from "./public/products.controller";
 import { PublicProductDetailController } from "./public/product-detail.controller";
 import { PublicTenantModule } from "./public/public-tenant.module";
 import { UploadModule } from "./upload/upload.module";
+import { AuthModule } from "./auth/auth.module";
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { UploadModule } from "./upload/upload.module";
     AdminModule,
     PublicTenantModule,
     UploadModule,
+    AuthModule,
   ],
   controllers: [
     AppController,

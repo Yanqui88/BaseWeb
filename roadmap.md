@@ -16,9 +16,9 @@
 - [x] Implementar la subida de imágenes en el backend forzando la conversión a '.webp' mediante la librería `sharp`.
 
 ## Hito 3: Autenticación y Sesiones
-- [ ] Diseñar el esquema de base de datos para credenciales y tokens de sesión.
-- [ ] Implementar login de administradores del tenant en `apps/api` (NestJS).
-- [ ] Integrar protección de rutas protegidas en `apps/admin` (Next.js).
+- [x] Diseñar el esquema de base de datos para credenciales y tokens de sesión.
+- [x] Implementar login de administradores del tenant en `apps/api` (NestJS).
+- [x] Integrar protección de rutas protegidas en `apps/admin` (Next.js).
 
 ## Hito 4: Pasarela de Pagos (Mercado Pago)
 - [ ] Diseñar las tablas SQL de transacciones, suscripciones y configuración de credenciales MP por tenant.
