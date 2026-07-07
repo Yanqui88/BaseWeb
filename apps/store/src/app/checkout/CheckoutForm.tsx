@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ShippingCalculator from "@/components/ShippingCalculator";
 
 type CheckoutItem = {
   title: string;
@@ -21,9 +22,18 @@ export default function CheckoutForm() {
   const [postalCode, setPostalCode] = useState("");
   const [phone, setPhone] = useState("");
 
+  // Shipping selection state
+  const [shippingCost, setShippingCost] = useState(0);
+  const [shippingMethodName, setShippingMethodName] = useState<string | null>(null);
+
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleShippingSelected = (cost: number, name: string | null) => {
+    setShippingCost(cost);
+    setShippingMethodName(name);
+  };
 
   // Hardcoded cart item for guest checkout demo
   const cartItem: CheckoutItem = {
@@ -46,6 +56,10 @@ export default function CheckoutForm() {
       setError("Por favor, completa todos los campos requeridos.");
       return;
     }
+    if (shippingCost === 0 || !shippingMethodName) {
+      setError("Por favor, calcula y selecciona un método de envío antes de pagar.");
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -66,6 +80,11 @@ export default function CheckoutForm() {
               title: cartItem.title,
               quantity: cartItem.quantity,
               unit_price: cartItem.unit_price,
+            },
+            {
+              title: `Envío - ${shippingMethodName}`,
+              quantity: 1,
+              unit_price: shippingCost,
             },
           ],
           customer: {
@@ -210,6 +229,12 @@ export default function CheckoutForm() {
             </div>
           </div>
         </div>
+
+        <ShippingCalculator
+          items={[cartItem]}
+          onShippingSelected={handleShippingSelected}
+          onZipCalculated={setPostalCode}
+        />
       </div>
 
       {/* Columna Derecha: Resumen de la Orden */}
@@ -217,7 +242,7 @@ export default function CheckoutForm() {
         <div className="sticky top-6 rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 text-sm font-semibold border border-blue-500/30">
-              2
+              3
             </span>
             Resumen del Pedido
           </h2>
@@ -245,16 +270,22 @@ export default function CheckoutForm() {
               <span>Subtotal</span>
               <span className="text-white font-medium">{formatARS(cartItem.unit_price * cartItem.quantity)}</span>
             </div>
-            <div className="flex justify-between text-sm text-slate-400">
-              <span>Envío</span>
-              <span className="text-emerald-400 font-medium tracking-wide uppercase text-xs bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                Gratis
+            <div className="flex justify-between text-sm text-slate-400 items-center">
+              <span className="truncate max-w-[200px]">
+                Envío {shippingMethodName && `(${shippingMethodName})`}
               </span>
+              {shippingCost > 0 ? (
+                <span className="text-white font-medium">{formatARS(shippingCost)}</span>
+              ) : (
+                <span className="text-emerald-400 font-medium tracking-wide uppercase text-[10px] bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  A calcular
+                </span>
+              )}
             </div>
             <div className="border-t border-white/[0.08] pt-4 flex justify-between text-base font-bold text-white">
               <span>Total</span>
-              <span className="text-lg bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-                {formatARS(cartItem.unit_price * cartItem.quantity)}
+              <span className="text-lg bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent font-extrabold">
+                {formatARS(cartItem.unit_price * cartItem.quantity + shippingCost)}
               </span>
             </div>
           </div>

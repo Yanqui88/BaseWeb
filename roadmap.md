@@ -27,5 +27,5 @@
 - [x] Maquetar y conectar el flujo de Checkout (Guest Checkout) en `apps/store`.
 
 ## Hito 5: Logística y Cotización
-- [ ] Integrar el SDK/API de Andreani en el backend para cotización en tiempo real.
-- [ ] Diseñar la interfaz de cálculo de envío en el carrito de compras de `apps/store`.
+- [x] Integrar el SDK/API de Andreani en el backend para cotización en tiempo real.
+- [x] Diseñar la interfaz de cálculo de envío en el carrito de compras de `apps/store`.
