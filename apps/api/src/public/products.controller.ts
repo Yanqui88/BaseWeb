@@ -26,25 +26,30 @@ export class PublicProductsController {
         MIN(v.price) AS "minPrice"
       FROM products p
       INNER JOIN variants v ON v.product_id = p.id
-      INNER JOIN inventories i ON i.variant_id = v.id
+      INNER JOIN inventory i ON i.product_variant_id = v.id
       WHERE p.status = 'ACTIVE'
-        AND ($1::text IS NULL OR i.location_id = $1)
+        AND ($1::uuid IS NULL OR i.location_id = $1::uuid)
         AND i.quantity > 0
       GROUP BY p.id, p.title, p.slug, p.cover_image, p.created_at
       ORDER BY p.created_at DESC
       LIMIT $2
     `;
 
-    const result = await this.db.query(query, [locationId || null, limit]);
+    try {
+      const result = await this.db.query(query, [locationId || null, limit]);
 
-    const items = result.rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      slug: row.slug,
-      coverImage: row.coverImage,
-      minPrice: row.minPrice !== null ? Number(row.minPrice) : null,
-    }));
+      const items = result.rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        coverImage: row.coverImage,
+        minPrice: row.minPrice !== null ? Number(row.minPrice) : null,
+      }));
 
-    return { items };
+      return { items };
+    } catch (e) {
+      console.error("ERROR IN GET PRODUCTS:", e);
+      throw e;
+    }
   }
 }

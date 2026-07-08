@@ -48,7 +48,7 @@ export class AdminVariantsController {
               v.updated_at AS "updatedAt",
               COALESCE(SUM(i.quantity), 0)::int AS "stockTotal"
        FROM variants v
-       LEFT JOIN inventories i ON i.variant_id = v.id
+       LEFT JOIN inventory i ON i.product_variant_id = v.id
        WHERE v.product_id = $1
        GROUP BY v.id, v.created_at
        ORDER BY v.created_at ASC`,

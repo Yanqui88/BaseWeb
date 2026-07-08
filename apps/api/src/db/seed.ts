@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Client } from "pg";
-import { encrypt } from "../utils/crypto.util.js";
+import { encrypt } from "../utils/crypto.util";
 
 async function main() {
   const client = new Client({
@@ -16,7 +16,7 @@ async function main() {
     // 1. Limpieza de datos en orden para respetar claves foráneas
     await client.query("DELETE FROM tenant_mp_credentials");
     await client.query("DELETE FROM variant_option_values");
-    await client.query("DELETE FROM inventories");
+    await client.query("DELETE FROM inventory");
     await client.query("DELETE FROM locations");
     await client.query("DELETE FROM variants");
     await client.query("DELETE FROM product_option_values");
@@ -161,12 +161,12 @@ async function main() {
     const invSId = "d3b07384-d113-4ec2-a5d6-c8402b89f827";
     const invMId = "d3b07384-d113-4ec2-a5d6-c8402b89f828";
     await client.query(
-      `INSERT INTO inventories (id, tenant_id, variant_id, location_id, quantity) 
+      `INSERT INTO inventory (id, tenant_id, product_variant_id, location_id, quantity) 
        VALUES ($1, $2, $3, $4, $5)`,
       [invSId, tenantId, variantSId, locationId, 10]
     );
     await client.query(
-      `INSERT INTO inventories (id, tenant_id, variant_id, location_id, quantity) 
+      `INSERT INTO inventory (id, tenant_id, product_variant_id, location_id, quantity) 
        VALUES ($1, $2, $3, $4, $5)`,
       [invMId, tenantId, variantMId, locationId, 7]
     );

@@ -30,14 +30,14 @@ export class AdminInventoryController {
     // Traer inventarios con nombre de sucursal
     const result = await this.db.query(
       `SELECT i.id,
-              i.variant_id AS "variantId",
+              i.product_variant_id AS "variantId",
               i.location_id AS "locationId",
               i.quantity,
               i.updated_at AS "updatedAt",
               l.name AS "locationName"
-       FROM inventories i
+       FROM inventory i
        JOIN locations l ON l.id = i.location_id
-       WHERE i.variant_id = $1
+       WHERE i.product_variant_id = $1
        ORDER BY l.name ASC`,
       [variantId],
     );
@@ -70,12 +70,12 @@ export class AdminInventoryController {
 
     // UPSERT: insertar o actualizar el inventario
     const result = await this.db.query(
-      `INSERT INTO inventories (id, tenant_id, variant_id, location_id, quantity)
+      `INSERT INTO inventory (id, tenant_id, product_variant_id, location_id, quantity)
        VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
-       ON CONFLICT (variant_id, location_id) DO UPDATE
+       ON CONFLICT (product_variant_id, location_id) DO UPDATE
          SET quantity = $4, updated_at = NOW()
        RETURNING id,
-                 variant_id AS "variantId",
+                 product_variant_id AS "variantId",
                  location_id AS "locationId",
                  quantity,
                  updated_at AS "updatedAt"`,

@@ -248,8 +248,7 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
    */
   private async applyRlsSettings(client: PoolClient, context: RlsContext): Promise<void> {
     if (context.tenantId) {
-      // Parámetro posicional para prevenir SQL injection aunque sea un UUID.
-      await client.query('SET LOCAL app.current_tenant_id = $1', [context.tenantId]);
+      await client.query('SELECT set_config(\'app.current_tenant_id\', $1, true)', [context.tenantId]);
     }
 
     if (context.isSuperAdmin === true) {
