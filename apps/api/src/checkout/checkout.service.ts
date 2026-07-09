@@ -9,7 +9,7 @@
  * 3. Desencripta el token con AES-256-GCM usando la función `decrypt` de `crypto.util.ts`.
  * 4. Realiza un HTTP POST a `https://api.mercadopago.com/checkout/preferences` con el payload
  *    armado con los items del carrito y los datos del comprador.
- * 5. Extrae y devuelve el `init_point` de la respuesta de Mercado Pago.
+ * 5. Extrae y devuelve `{ initPoint, preferenceId }` de la respuesta de Mercado Pago.
  *
  * **Variables de entorno requeridas:**
  * - `MP_ENCRYPTION_KEY`: Clave AES-256 en hexadecimal (64 chars) para desencriptar el token.
@@ -25,7 +25,6 @@ import {
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { randomUUID } from 'crypto';
 import { DbService } from '../db/db.service.js';
 import { decrypt } from '../utils/crypto.util.js';
 import type { CheckoutCustomer, CheckoutItem } from './checkout.controller.js';
@@ -49,6 +48,12 @@ interface MpPreferencePayload {
   payer: { email: string };
   external_reference: string;
   notification_url: string;
+  back_urls?: {
+    success: string;
+    failure: string;
+    pending: string;
+  };
+  auto_return?: 'approved' | 'all';
 }
 
 /** Respuesta parcial de la API de preferencias de Mercado Pago. */
@@ -59,6 +64,12 @@ interface MpPreferenceResponse {
   init_point: string;
   /** URL alternativa para entornos sandbox. */
   sandbox_init_point?: string;
+}
+
+/** Resultado devuelto por createPreference. */
+export interface CreatePreferenceResult {
+  initPoint: string;
+  preferenceId: string;
 }
 
 @Injectable()
@@ -81,16 +92,20 @@ export class CheckoutService {
    * porque el `PublicTenantInterceptor` ya lo habrá inyectado en el contexto RLS
    * antes de que este método sea invocado.
    *
-   * @param items    - Array de items del carrito de compras del cliente.
-   * @param customer - Datos del comprador (se requiere al menos el email).
-   * @returns La URL `init_point` de Mercado Pago para redirigir al comprador al checkout.
+   * @param orderId     - UUID de la orden ya creada en la DB (usada como external_reference).
+   * @param items       - Array de items del carrito de compras del cliente.
+   * @param customer    - Datos del comprador (se requiere al menos el email).
+   * @param tenantDomain - Dominio del tenant para configurar las back_urls.
+   * @returns `{ initPoint, preferenceId }` de Mercado Pago.
    * @throws NotFoundException si el tenant no tiene credenciales de MP configuradas.
    * @throws InternalServerErrorException si la desencriptación o la llamada a MP fallan.
    */
   async createPreference(
+    orderId: string,
     items: CheckoutItem[],
     customer: CheckoutCustomer,
-  ): Promise<string> {
+    tenantDomain: string,
+  ): Promise<CreatePreferenceResult> {
     // ── 1. Leer el tenantId desde el AsyncLocalStorage ────────────────────────
     const tenantId = this.db.als.getStore()?.tenantId;
     if (!tenantId) {
@@ -100,7 +115,7 @@ export class CheckoutService {
     }
 
     this.logger.log(
-      `[Tenant: ${tenantId}] Creando preferencia de pago para ${items.length} ítem(s).`,
+      `[Tenant: ${tenantId}] Creando preferencia de pago para orden ${orderId}, ${items.length} ítem(s).`,
     );
 
     // ── 2. Obtener el access_token encriptado del tenant ──────────────────────
@@ -130,14 +145,14 @@ export class CheckoutService {
     }
 
     // ── 4. Armar el payload para Mercado Pago ─────────────────────────────────
-    // Generamos un UUID como referencia externa temporal del pedido.
-    const orderId = randomUUID();
-
-    // La notification_url apunta al endpoint de webhooks de esta misma API.
-    // Se lee desde una variable de entorno para soporte multi-entorno (local / staging / prod).
-    const apiBaseUrl =
-      process.env.API_BASE_URL ?? 'https://tu-api.com';
+    // Se usa el orderId real de la BD como external_reference para que los
+    // webhooks puedan localizar y actualizar la orden correspondiente.
+    const apiBaseUrl = process.env.API_BASE_URL ?? 'https://tu-api.com';
     const notificationUrl = `${apiBaseUrl}/mp-webhooks/${tenantId}`;
+
+    // Usamos http:// en las back_urls para compatibilidad con dominios personalizados.
+    // En producción se puede reemplazar por https:// via variable de entorno.
+    const storeBaseUrl = `http://${tenantDomain}`;
 
     const payload: MpPreferencePayload = {
       items: items.map((item) => ({
@@ -150,6 +165,12 @@ export class CheckoutService {
       },
       external_reference: orderId,
       notification_url: notificationUrl,
+      back_urls: {
+        success: `${storeBaseUrl}/checkout/success`,
+        failure: `${storeBaseUrl}/checkout/success`,
+        pending: `${storeBaseUrl}/checkout/success`,
+      },
+      auto_return: 'approved',
     };
 
     // ── 5. Llamar a la API de preferencias de Mercado Pago ────────────────────
@@ -191,7 +212,10 @@ export class CheckoutService {
         `MP Preference ID: ${mpResponse.id}. Order ID: ${orderId}.`,
     );
 
-    // ── 6. Retornar el init_point al controlador ──────────────────────────────
-    return mpResponse.init_point;
+    // ── 6. Retornar el init_point y el preferenceId ───────────────────────────
+    return {
+      initPoint: mpResponse.init_point,
+      preferenceId: mpResponse.id,
+    };
   }
 }

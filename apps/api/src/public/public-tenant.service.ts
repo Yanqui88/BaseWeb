@@ -20,6 +20,7 @@ export interface TenantPublicConfig {
   primary_color: string | null;
   secondary_color: string | null;
   logo_url: string | null;
+  whatsapp_phone: string | null;
 }
 
 @Injectable()
@@ -35,7 +36,7 @@ export class PublicTenantService {
    * antes del SELECT, por lo que el RLS retorna únicamente las filas del tenant
    * correcto sin ningún filtro manual en el código.
    *
-   * @returns Las configuraciones visuales del tenant (colores, logo, nombre).
+   * @returns Las configuraciones visuales del tenant (colores, logo, nombre, whatsapp).
    */
   async getTenantPublicConfig(): Promise<TenantPublicConfig | null> {
     const result = await this.db.query<TenantPublicConfig>(
@@ -45,7 +46,8 @@ export class PublicTenantService {
          domain,
          primary_color,
          secondary_color,
-         logo_url
+         logo_url,
+         whatsapp_phone
        FROM tenants
        LIMIT 1`,
     );

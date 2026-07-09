@@ -23,5 +23,6 @@ import { PublicTenantInterceptor } from '../public/public-tenant.interceptor.js'
   imports: [HttpModule],
   controllers: [CheckoutController],
   providers: [CheckoutService, PublicTenantInterceptor],
+  exports: [CheckoutService],
 })
 export class CheckoutModule {}

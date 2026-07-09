@@ -18,6 +18,9 @@ import { MpAuthModule } from "./mp-auth/mp-auth.module";
 import { MpWebhooksModule } from "./mp-webhooks/mp-webhooks.module";
 import { CheckoutModule } from "./checkout/checkout.module";
 import { LogisticsModule } from "./logistics/logistics.module";
+import { OrdersModule } from "./orders/orders.module";
+import { WebhooksModule } from "./webhooks/webhooks.module";
+import { EmailModule } from "./email/email.module";
 
 @Module({
   imports: [
@@ -36,6 +39,9 @@ import { LogisticsModule } from "./logistics/logistics.module";
     MpWebhooksModule,
     CheckoutModule,
     LogisticsModule,
+    OrdersModule,
+    WebhooksModule,
+    EmailModule,
   ],
   controllers: [
     AppController,

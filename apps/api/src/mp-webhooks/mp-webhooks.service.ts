@@ -3,23 +3,19 @@
  * @description Servicio de procesamiento de webhooks de pago de Mercado Pago.
  *
  * **Flujo completo:**
- * 1. Activa el contexto RLS via `db.als.run({ tenantId }, ...)` para que todas
- *    las queries de DB solo vean y modifiquen datos del tenant correspondiente.
- * 2. Lee el `access_token` encriptado de `tenant_mp_credentials` (el RLS filtra
- *    automáticamente por `tenant_id`).
- * 3. Desencripta el token con AES-256-GCM usando `crypto.util.ts`.
- * 4. Consulta la API oficial de Mercado Pago para obtener los detalles del pago.
- * 5. Persiste el resultado en `mp_transactions` con UPSERT SQL nativo.
- *
- * **Seguridad:**
- * - El RLS de PostgreSQL garantiza aislamiento de datos entre tenants.
- * - Los tokens se almacenan encriptados; nunca se loguean en texto plano.
+ * 1. Activa el contexto RLS via `db.als.run({ tenantId }, ...)`.
+ * 2. Lee el `access_token` encriptado de `tenant_mp_credentials`.
+ * 3. Desencripta el token y consulta la API de MP para obtener detalles del pago.
+ * 4. Persiste el resultado en `mp_transactions` con UPSERT SQL nativo.
+ * 5. Si el pago tiene `external_reference` (orderId), llama a OrdersService
+ *    para actualizar el estado de la orden y disparar notificaciones de email.
  */
 
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { DbService } from '../db/db.service.js';
+import { OrdersService } from '../orders/orders.service.js';
 import { decrypt } from '../utils/crypto.util.js';
 
 /** Estructura de las credenciales de MP almacenadas en la DB. */
@@ -50,13 +46,11 @@ export class MpWebhooksService {
   constructor(
     private readonly db: DbService,
     private readonly http: HttpService,
+    private readonly ordersService: OrdersService,
   ) {}
 
   /**
    * Procesa un webhook de pago de Mercado Pago para un tenant específico.
-   *
-   * Todo el trabajo se realiza dentro del contexto ALS para que el RLS de
-   * PostgreSQL esté activo y limite el acceso a los datos del tenant.
    *
    * @param tenantId  - UUID del tenant propietario del pago.
    * @param paymentId - ID del pago en Mercado Pago.
@@ -68,7 +62,6 @@ export class MpWebhooksService {
       );
 
       // ── 1. Obtener el access_token encriptado del tenant ──────────────────
-      // El RLS garantiza que el SELECT solo retorna la fila del tenant activo.
       const credResult = await this.db.query<TenantMpCredentialRow>(
         'SELECT access_token_encrypted FROM tenant_mp_credentials LIMIT 1',
       );
@@ -141,11 +134,11 @@ export class MpWebhooksService {
 
       this.logger.log(
         `[Tenant: ${tenantId}] Pago ${mpPaymentId} obtenido de MP. ` +
-          `Status: ${status} (${statusDetail}). Monto: ${amount} ${currencyId}.`,
+          `Status: ${status} (${statusDetail}). Monto: ${amount} ${currencyId}. ` +
+          `external_reference (orderId): ${orderId ?? 'N/A'}`,
       );
 
       // ── 5. UPSERT en mp_transactions (SQL puro, sin ORM) ──────────────────
-      // ON CONFLICT sobre mp_payment_id actualiza el estado del pago si ya existe.
       await this.db.query(
         `INSERT INTO mp_transactions (
           tenant_id,
@@ -179,6 +172,36 @@ export class MpWebhooksService {
       this.logger.log(
         `[Tenant: ${tenantId}] Pago ${mpPaymentId} persistido en mp_transactions correctamente.`,
       );
+
+      // ── 6. Actualizar el estado de la orden (si existe external_reference) ─
+      // El external_reference es el UUID de la orden (creado en OrdersService.createOrder).
+      if (orderId) {
+        try {
+          // Mapeamos el estado de MP a los valores internos
+          const statusMap: Record<string, string> = {
+            approved: 'approved',
+            rejected: 'rejected',
+            refunded: 'refunded',
+          };
+          const mappedStatus = statusMap[status] ?? 'pending';
+
+          await this.ordersService.updatePaymentStatus(
+            orderId,
+            mappedStatus,
+            String(mpPaymentId),
+          );
+
+          this.logger.log(
+            `[Tenant: ${tenantId}] Orden ${orderId} actualizada a payment_status="${mappedStatus}" ` +
+              `con mp_transaction_id="${mpPaymentId}".`,
+          );
+        } catch (err: unknown) {
+          const error = err as Error;
+          this.logger.error(
+            `[Tenant: ${tenantId}] Error al actualizar la orden ${orderId}: ${error.message}`,
+          );
+        }
+      }
     });
   }
 }

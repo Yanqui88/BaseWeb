@@ -67,46 +67,72 @@ export default function CheckoutForm() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
     const tenantDomain = typeof window !== "undefined" ? window.location.hostname : "localhost";
 
+    // Obtener el location_id de la sesión (o usar un valor por defecto de demo)
+    // En producción, esto vendría del contexto de la sucursal seleccionada
+    const locationId = sessionStorage.getItem("active_location_id") || "00000000-0000-0000-0000-000000000000";
+
     try {
-      const response = await fetch(`${apiUrl}/checkout/preference`, {
+      const subtotal = cartItem.unit_price * cartItem.quantity;
+      const total = subtotal + shippingCost;
+
+      // Mapear el método de envío al tipo del DTO
+      const shippingMethodMap: Record<string, string> = {
+        "Andreani Estándar": "andreani_standard",
+        "Andreani Express": "andreani_express",
+        "Retiro en Sucursal": "pickup",
+        "Moto Local": "moto_local",
+      };
+      const shippingMethodValue = shippingMethodMap[shippingMethodName ?? ""] ?? "andreani_standard";
+
+      const orderPayload = {
+        locationId,
+        customerEmail: email,
+        customerName: fullName,
+        customerPhone: phone,
+        shippingMethod: shippingMethodValue,
+        shippingAddress: {
+          street: address,
+          number: "S/N",
+          city,
+          state: city,
+          zip_code: postalCode,
+          country: "AR",
+        },
+        subtotal,
+        shippingCost,
+        total,
+        items: [
+          {
+            productId: "00000000-0000-0000-0000-000000000001", // demo product id
+            quantity: cartItem.quantity,
+            unitPrice: cartItem.unit_price,
+          },
+        ],
+      };
+
+      const response = await fetch(`${apiUrl}/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-tenant-domain": tenantDomain,
         },
-        body: JSON.stringify({
-          items: [
-            {
-              title: cartItem.title,
-              quantity: cartItem.quantity,
-              unit_price: cartItem.unit_price,
-            },
-            {
-              title: `Envío - ${shippingMethodName}`,
-              quantity: 1,
-              unit_price: shippingCost,
-            },
-          ],
-          customer: {
-            email: email,
-          },
-        }),
+        body: JSON.stringify(orderPayload),
       });
 
       if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.message || "Error al crear la preferencia de pago.");
+        const errData = await response.json().catch(() => ({})) as { message?: string };
+        throw new Error(errData.message || "Error al crear la orden.");
       }
 
-      const data = (await response.json()) as { init_point: string };
-      if (data.init_point) {
-        // Redirigir a Mercado Pago
-        window.location.href = data.init_point;
+      const data = await response.json() as { success: boolean; data: { initPoint?: string } };
+      if (data.data?.initPoint) {
+        window.location.href = data.data.initPoint;
       } else {
         throw new Error("No se recibió la URL de pago desde el backend.");
       }
-    } catch (err: any) {
-      setError(err.message || "Hubo un error al procesar el pago. Por favor intenta de nuevo.");
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || "Hubo un error al procesar el pago. Por favor intenta de nuevo.");
       setLoading(false);
     }
   };

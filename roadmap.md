@@ -31,7 +31,13 @@
 - [x] Diseñar la interfaz de cálculo de envío en el carrito de compras de `apps/store`.
 
 ## Hito 6: Gestión de Órdenes, Panel Admin y Notificaciones
-- [ ] Definir el esquema SQL (`orders`, `order_items`) con soporte para multi-depósito y RLS.
-- [ ] Desarrollar los controladores de creación de órdenes y Webhooks de actualización (Mercado Pago / Andreani).
-- [ ] Construir la interfaz de gestión de órdenes en `apps/admin`.
-- [ ] Integrar proveedor de Email o WhatsApp para notificaciones transaccionales.
+- [x] Definir el esquema SQL (`orders`, `order_items`) con soporte para multi-depósito y RLS.
+- [x] Desarrollar los controladores de creación de órdenes y Webhooks de actualización (Mercado Pago / Andreani).
+- [x] Construir la interfaz de gestión de órdenes en `apps/admin`.
+- [x] Integrar proveedor de Email o WhatsApp para notificaciones transaccionales.
+
+## Hito 7: Optimización, Escalabilidad y Pruebas E2E
+- [ ] Implementar suite de pruebas E2E (Playwright o Cypress) para el flujo de Checkout y Webhooks.
+- [ ] Optimizar consultas a la base de datos (revisión de índices faltantes para búsqueda de productos y listado de órdenes).
+- [ ] Implementar caché con Redis para respuestas públicas del catálogo de productos y configuraciones del tenant.
+- [ ] Refinar las métricas de monitoreo de Node.js (Prometheus/Grafana o métricas nativas).

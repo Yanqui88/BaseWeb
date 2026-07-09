@@ -16,9 +16,10 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { MpWebhooksController } from './mp-webhooks.controller.js';
 import { MpWebhooksService } from './mp-webhooks.service.js';
+import { OrdersModule } from '../orders/orders.module.js';
 
 @Module({
-  imports: [HttpModule],
+  imports: [HttpModule, OrdersModule],
   controllers: [MpWebhooksController],
   providers: [MpWebhooksService],
 })
