@@ -43,7 +43,7 @@ export class PublicProductDetailController {
         v.price,
         v.compare_at AS "compareAt",
         COALESCE(SUM(CASE WHEN $2::uuid IS NULL OR i.location_id = $2::uuid THEN i.quantity ELSE 0 END), 0)::int AS "stockTotal",
-        jsonb_object_agg(LOWER(po.name), pov.value) AS "options"
+        jsonb_object_agg(LOWER(po.name), pov.value) FILTER (WHERE po.name IS NOT NULL) AS "options"
       FROM variants v
       LEFT JOIN inventory i ON i.product_variant_id = v.id
       LEFT JOIN variant_option_values vov ON vov.variant_id = v.id

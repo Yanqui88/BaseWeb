@@ -128,7 +128,14 @@ export default async function ProductPage({
             </div>
           </div>
 
-          {/* En el próximo paso: selector + add-to-cart */}
+          <div className="mt-8">
+            <Link
+              href="/checkout"
+              className="inline-block rounded-xl bg-blue-600 px-6 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-700 transition-colors"
+            >
+              Comprar
+            </Link>
+          </div>
         </div>
       </div>
     </main>

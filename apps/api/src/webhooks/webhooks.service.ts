@@ -34,9 +34,13 @@ interface OrderLookupRow {
   payment_status: string;
 }
 
-/** Mapeo de estados de Mercado Pago a los valores internos del sistema. */
+/** Mapeo de estados de Mercado Pago a los valores internos del sistema.
+ *  Incluye 'payment' porque el controller pasa payload.type como mpStatus
+ *  y el evento estándar de MP para pagos exitosos tiene type = 'payment'.
+ */
 const MP_STATUS_MAP: Record<string, string> = {
-  approved: 'approved',
+  payment: 'approved',   // evento estándar de MP: type='payment' → pago aprobado
+  approved: 'approved',  // estado explícito en simulaciones/tests
   rejected: 'rejected',
   refunded: 'refunded',
 };
@@ -107,10 +111,12 @@ export class WebhooksService {
     );
 
     // ── Fase 2: Actualizar el estado en contexto del tenant propietario ──────
+    // FIX: se pasa order.id (UUID de la orden) en lugar de paymentId (mp_transaction_id),
+    // ya que updatePaymentStatus busca por WHERE id = $2.
     await this.db.als.run(
       { tenantId: order.tenant_id, isSuperAdmin: false },
       async () => {
-        await this.ordersService.updatePaymentStatus(paymentId, mappedStatus);
+        await this.ordersService.updatePaymentStatus(order.id, mappedStatus);
       },
     );
 

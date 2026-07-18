@@ -33,7 +33,14 @@ async function getBanner(): Promise<HomeBanner> {
   });
 
   if (!res.ok) return null;
-  return res.json();
+  const text = await res.text();
+  if (!text.trim()) return null;
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Error parsing banner JSON:", e);
+    return null;
+  }
 }
 
 type Product = {
@@ -55,8 +62,15 @@ async function getProducts(): Promise<Product[]> {
 
   if (!res.ok) return [];
 
-  const data = await res.json();
-  return data.items ?? [];
+  const text = await res.text();
+  if (!text.trim()) return [];
+  try {
+    const data = JSON.parse(text);
+    return data.items ?? [];
+  } catch (e) {
+    console.error("Error parsing products JSON:", e);
+    return [];
+  }
 }
 
 function formatARSFromCents(cents: number) {

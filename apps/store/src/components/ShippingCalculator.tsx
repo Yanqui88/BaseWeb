@@ -63,8 +63,10 @@ export default function ShippingCalculator({
     }).format(value);
   };
 
-  const handleCalculate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCalculate = async (e?: React.SyntheticEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
     if (!destinationZip.trim()) {
       setError("Por favor, ingresa un código postal.");
       return;
@@ -135,19 +137,26 @@ export default function ShippingCalculator({
         Método de Envío
       </h3>
 
-      <form onSubmit={handleCalculate} className="flex gap-3 mb-6">
+      <div className="flex gap-3 mb-6">
         <div className="flex-1">
           <input
             type="text"
             placeholder="Tu Código Postal (ej: 1425)"
             value={destinationZip}
             onChange={(e) => setDestinationZip(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleCalculate(e);
+              }
+            }}
             disabled={loading}
             className="w-full rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3 text-sm text-white placeholder-slate-500 transition-all duration-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
           />
         </div>
         <button
-          type="submit"
+          type="button"
+          onClick={() => handleCalculate()}
           disabled={loading}
           className="rounded-xl bg-white/10 border border-white/10 px-5 py-3 text-sm font-semibold text-white shadow-lg backdrop-blur-sm transition-all duration-300 hover:bg-white/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer flex items-center gap-2"
         >
@@ -163,7 +172,7 @@ export default function ShippingCalculator({
             "Calcular"
           )}
         </button>
-      </form>
+      </div>
 
       {error && (
         <div className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-xs text-red-400 backdrop-blur-sm animate-pulse">
