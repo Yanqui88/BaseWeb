@@ -39,5 +39,5 @@
 ## Hito 7: Optimización, Escalabilidad y Pruebas E2E
 - [x] Implementar suite de pruebas E2E (Playwright o Cypress) para el flujo de Checkout y Webhooks.
 - [x] Optimizar consultas a la base de datos (revisión de índices faltantes para búsqueda de productos y listado de órdenes).
-- [ ] Implementar caché con Redis para respuestas públicas del catálogo de productos y configuraciones del tenant.
+- [x] Implementar caché con Redis para respuestas públicas del catálogo de productos y configuraciones del tenant.
 - [ ] Refinar las métricas de monitoreo de Node.js (Prometheus/Grafana o métricas nativas).

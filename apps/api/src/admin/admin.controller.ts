@@ -3,17 +3,20 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
   Post,
   Put,
   UploadedFile,
   UseInterceptors,
 } from "@nestjs/common";
+import { CACHE_MANAGER, Cache } from "@nestjs/cache-manager";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { DbService } from "../db/db.service";
 import { diskStorage } from "multer";
 import { extname, join } from "path";
 import { readdir } from "fs/promises";
+import { tenantConfigKey } from "../cache/cache-keys";
 
 type UpsertBannerDto = {
   desktopImageUrl: string;
@@ -29,7 +32,10 @@ type UpsertBannerDto = {
 
 @Controller("admin")
 export class AdminController {
-  constructor(private db: DbService) {}
+  constructor(
+    private db: DbService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   @Get(":tenantSlug/home/banner")
   async getBanner(@Param("tenantSlug") _tenantSlug: string) {
@@ -120,7 +126,12 @@ export class AdminController {
         0,
       ]);
 
-      return result.rows[0];
+      const row = result.rows[0];
+
+      // Invalida la caché de configuración visual del tenant
+      await this.cacheManager.del(tenantConfigKey(tenantId));
+
+      return row;
     });
   }
 

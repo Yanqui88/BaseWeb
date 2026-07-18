@@ -1,16 +1,25 @@
 /**
  * @file public-tenant.service.ts
  * @description Servicio que encapsula la lógica de consulta de configuraciones
- * visuales públicas de un tenant.
+ * visuales públicas de un tenant, con caché Redis integrada.
  *
  * IMPORTANTE: Este servicio NO añade filtros `WHERE tenant_id = ?` manuales.
  * El aislamiento por tenant lo garantiza el RLS de PostgreSQL, activado
  * automáticamente por el `PublicTenantInterceptor` antes de que este método
  * sea invocado.
+ *
+ * CACHÉ: Los resultados se guardan en Redis bajo la llave
+ * `tenant:{tenantId}:config` con un TTL de 5 minutos. La invalidación ocurre
+ * desde los endpoints admin que modifican la configuración del tenant.
  */
 
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { DbService } from '../db/db.service.js';
+import {
+  tenantConfigKey,
+  CACHE_TTL_TENANT_CONFIG_MS,
+} from '../cache/cache-keys.js';
 
 /** Configuración visual pública de un tenant. */
 export interface TenantPublicConfig {
@@ -25,11 +34,19 @@ export interface TenantPublicConfig {
 
 @Injectable()
 export class PublicTenantService {
-  constructor(private readonly db: DbService) {}
+  constructor(
+    private readonly db: DbService,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {}
 
   /**
    * Obtiene las configuraciones visuales base del tenant activo en el contexto
    * RLS actual.
+   *
+   * Flujo con caché:
+   * 1. Intenta leer la llave `tenant:{tenantId}:config` desde Redis.
+   * 2. Si hay HIT → devuelve el valor cacheado (sin consultar Postgres).
+   * 3. Si hay MISS → consulta Postgres, guarda el resultado en Redis y devuelve.
    *
    * Esta consulta se ejecuta automáticamente acotada al tenant resuelto por el
    * `PublicTenantInterceptor`: Postgres aplica `SET LOCAL app.current_tenant_id`
@@ -39,6 +56,20 @@ export class PublicTenantService {
    * @returns Las configuraciones visuales del tenant (colores, logo, nombre, whatsapp).
    */
   async getTenantPublicConfig(): Promise<TenantPublicConfig | null> {
+    // Leemos el tenantId del contexto ALS para construir la llave de caché.
+    const tenantId = this.db.als.getStore()?.tenantId;
+
+    if (tenantId) {
+      const cacheKey = tenantConfigKey(tenantId);
+
+      // 1. Intento de HIT en caché
+      const cached = await this.cacheManager.get<TenantPublicConfig>(cacheKey);
+      if (cached) {
+        return cached;
+      }
+    }
+
+    // 2. MISS → consulta a Postgres (protegida por RLS automáticamente)
     const result = await this.db.query<TenantPublicConfig>(
       `SELECT
          id,
@@ -52,6 +83,17 @@ export class PublicTenantService {
        LIMIT 1`,
     );
 
-    return result.rows[0] ?? null;
+    const config = result.rows[0] ?? null;
+
+    // 3. Guardar en caché si obtuvimos un resultado y tenemos contexto
+    if (config && tenantId) {
+      await this.cacheManager.set(
+        tenantConfigKey(tenantId),
+        config,
+        CACHE_TTL_TENANT_CONFIG_MS,
+      );
+    }
+
+    return config;
   }
 }

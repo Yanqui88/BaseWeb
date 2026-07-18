@@ -21,6 +21,7 @@ import { LogisticsModule } from "./logistics/logistics.module";
 import { OrdersModule } from "./orders/orders.module";
 import { WebhooksModule } from "./webhooks/webhooks.module";
 import { EmailModule } from "./email/email.module";
+import { AppCacheModule } from "./cache/cache.module";
 
 @Module({
   imports: [
@@ -29,6 +30,9 @@ import { EmailModule } from "./email/email.module";
       rootPath: join(process.cwd(), "uploads"),
       serveRoot: "/uploads",
     }),
+
+    // Caché global con Redis (o en memoria si REDIS_URL no está definida)
+    AppCacheModule,
 
     DbModule,
     AdminModule,

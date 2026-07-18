@@ -54,6 +54,10 @@ Request (host: tienda-abc.com)
 | `@types/pg` | `^8.x` | Tipado TypeScript de `pg` |
 | `node-pg-migrate` | `^8.x` | Gestión de migraciones SQL (devDep) |
 | `dotenv` | `^17.x` | Carga de `.env` (devDep) |
+| `@nestjs/cache-manager` | `^3.x` | Módulo de caché para NestJS |
+| `cache-manager` | `^6.x` | Core de caché (keyv-based) |
+| `@keyv/redis` | `^4.x` | Store Redis para Keyv |
+| `keyv` | `^5.x` | Adaptador de store unificado |
 
 ---
 
@@ -83,6 +87,10 @@ pnpm --filter api migrate:down
 |----------|-------------|
 | `DATABASE_URL` | URI de conexión PostgreSQL (`postgresql://user:pass@host:port/db`) |
 | `PORT` | Puerto donde escucha el servidor NestJS (default: `4000`) |
+| `REDIS_URL` | URL completa de Redis (ej: `redis://localhost:6379`) — **opcional** |
+| `REDIS_HOST` | Host de Redis alternativo (requiere `REDIS_PORT` op.) — **opcional** |
+
+> Si `REDIS_URL` y `REDIS_HOST` están ausentes, el caché usa un store en **memoria** como fallback.
 
 ---
 
@@ -92,3 +100,28 @@ pnpm --filter api migrate:down
 - Los imports internos del módulo `db` deben usar extensión `.js` (requerido por `moduleResolution: nodenext`).
 - Toda función pública que acceda a la DB debe tener JSDoc.
 - Los errores de DB se deben propagar (`throw error`) sin silenciar.
+
+---
+
+## 🧊 Capa de Caché (Fase 3 — Hito 7)
+
+### Módulo
+- **Archivo:** `src/cache/cache.module.ts` → `AppCacheModule` (global).
+- **Store:** `@keyv/redis` vía `Keyv`, compatible con `@nestjs/cache-manager` v3.
+- **Fallback:** Si no hay `REDIS_URL`, usa store en memoria (no distribuido).
+
+### Llaves de caché (centralizadas en `src/cache/cache-keys.ts`)
+| Llave | TTL | Descripción |
+|-------|-----|-------------|
+| `tenant:{id}:config` | 5 min | Config visual pública del tenant |
+| `tenant:{id}:catalog:{locationId\|all}` | 2 min | Catálogo de productos por sucursal |
+
+### Invalidación
+| Endpoint admin | Invalida |
+|----------------|----------|
+| `PUT /:slug/home/banner` | `tenant:{id}:config` |
+| `POST /:slug/products` | `tenant:{id}:catalog:all` |
+| `PUT /:slug/products/:id` | `tenant:{id}:catalog:all` |
+| `DELETE /:slug/products/:id` | `tenant:{id}:catalog:all` |
+
+> **REGLA:** Para añadir caché a un nuevo endpoint, importar `CACHE_MANAGER` y `Cache` desde `@nestjs/cache-manager` (NO desde `cache-manager` directamente, o falla con `isolatedModules`).
