@@ -1,0 +1,139 @@
+# =============================================================================
+# Caddyfile — Proxy Inverso Multi-tenant con On-Demand TLS
+#
+# Arquitectura:
+#   Internet → Caddy (80/443) → api:4000  (NestJS, rutas /api/*)
+#                             → store:3000 (Next.js, resto del tráfico)
+#
+# SEGURIDAD On-Demand TLS:
+#   Antes de emitir cualquier certificado nuevo, Caddy consulta al endpoint
+#   interno de NestJS (/api/tenants/verify-domain?domain=<dominio>).
+#   Si la API responde HTTP 200 → el dominio es de un tenant válido → se emite cert.
+#   Cualquier otro código → se rechaza → se previene agotamiento de cuota Let's Encrypt.
+#
+# NOTA: El panel admin (puerto 3001) NO está expuesto a Caddy.
+#       Acceder únicamente vía túnel SSH: ssh -L 3001:localhost:3001 user@vps
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# OPCIONES GLOBALES
+# Configuran el comportamiento de todo el servidor Caddy.
+# -----------------------------------------------------------------------------
+{
+	# Dirección del servidor de ACME.
+	# Para producción real, elimina o comenta la línea 'acme_ca' de abajo.
+	# Para staging/pruebas (evitar límites de cuota), descomenta:
+	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+
+	# Email de contacto para Let's Encrypt (reemplaza con el tuyo real).
+	email admin@tudominio.com
+
+	# --- On-Demand TLS ---
+	# Habilita la emisión de certificados en tiempo real cuando llega una petición.
+	# El bloque 'ask' es CRÍTICO para la seguridad: Caddy no emitirá un certificado
+	# para ningún dominio que no sea aprobado por nuestra propia API NestJS.
+	# Esto previene el ataque de "certificate exhaustion" contra Let's Encrypt.
+	on_demand_tls {
+		# Endpoint interno de validación: solo accesible dentro de la red Docker.
+		# NestJS debe responder HTTP 200 si el dominio pertenece a un tenant activo,
+		# o cualquier código de error (4xx/5xx) si no existe o está suspendido.
+		ask http://api:4000/api/tenants/verify-domain
+
+		# Límite de cuota como capa de defensa adicional:
+		# máximo 5 certificados nuevos cada 10 minutos.
+		interval 10m
+		burst    5
+	}
+
+	# Ajuste de logs globales (formato JSON para facilitar parseo con herramientas como Loki)
+	log {
+		format json
+	}
+}
+
+# -----------------------------------------------------------------------------
+# BLOQUE 1 — API NestJS
+# Maneja TODO el tráfico que llega a rutas /api/* desde cualquier dominio.
+# Útil para dominios canónicos (ej. api.tudominio.com) o subdominios de tenant.
+# -----------------------------------------------------------------------------
+(api_proxy) {
+	# Cabeceras que preservan la IP real del cliente final.
+	# Sin esto, NestJS vería siempre la IP interna de Caddy (172.x.x.x).
+	header_up X-Forwarded-For    {remote_host}
+	header_up X-Forwarded-Proto  {scheme}
+	header_up X-Forwarded-Host   {host}
+	header_up X-Real-IP          {remote_host}
+
+	# Cabecera de seguridad: indica que el request viene de nuestro proxy de confianza.
+	header_up X-Proxy-Secret     {env.CADDY_PROXY_SECRET}
+
+	# Elimina cabeceras que podrían revelar infraestructura interna al cliente.
+	header_down -Server
+	header_down -X-Powered-By
+}
+
+(store_proxy) {
+	# Mismas cabeceras para Next.js (Store).
+	# Next.js usa X-Forwarded-For en middleware para geolocalización y rate-limiting.
+	header_up X-Forwarded-For    {remote_host}
+	header_up X-Forwarded-Proto  {scheme}
+	header_up X-Forwarded-Host   {host}
+	header_up X-Real-IP          {remote_host}
+	header_up X-Proxy-Secret     {env.CADDY_PROXY_SECRET}
+	header_down -Server
+	header_down -X-Powered-By
+}
+
+# -----------------------------------------------------------------------------
+# BLOQUE 2 — Dominio canónico principal de la API
+# Para cuando exponemos la API bajo su propio subdominio (api.tudominio.com).
+# Reemplaza 'api.tudominio.com' con el dominio real en producción.
+# -----------------------------------------------------------------------------
+api.tudominio.com {
+	tls {
+		on_demand
+	}
+
+	import api_proxy
+	reverse_proxy api:4000
+}
+
+# -----------------------------------------------------------------------------
+# BLOQUE 3 — Comodín multi-tenant con On-Demand TLS
+# Captura CUALQUIER dominio personalizado de un tenant (ej. tienda.cliente.com).
+# El certificado se emite solo si NestJS valida el dominio (bloque 'ask' global).
+# -----------------------------------------------------------------------------
+:443 {
+	tls {
+		on_demand
+	}
+
+	# Enrutamiento basado en la ruta de la petición:
+	# Las rutas /api/* van al backend NestJS.
+	handle /api/* {
+		import api_proxy
+		reverse_proxy api:4000
+	}
+
+	# Webhooks de MercadoPago también van a NestJS directamente.
+	handle /webhooks/* {
+		import api_proxy
+		reverse_proxy api:4000
+	}
+
+	# Todo lo demás (/, /productos, /carrito, etc.) va a Next.js Store.
+	handle {
+		import store_proxy
+		reverse_proxy store:3000
+	}
+}
+
+# -----------------------------------------------------------------------------
+# BLOQUE 4 — Redirección HTTP → HTTPS (sin excepción)
+# Captura todo el tráfico en el puerto 80 y redirige a HTTPS.
+# Caddy lo hace automáticamente, pero lo definimos explícitamente para claridad.
+# -----------------------------------------------------------------------------
+:80 {
+	# Redirigir todo tráfico HTTP a HTTPS con código 301 (permanente).
+	redir https://{host}{uri} 301
+}

@@ -46,7 +46,13 @@
 - [x] Implementar Rate Limiting con `@nestjs/throttler` y Redis para proteger rutas públicas y Checkout.
 - [x] Auditar y refactorizar Webhooks de Mercado Pago (Firma HMAC, Asincronía con BullMQ, Idempotencia estricta).
 - [x] Configurar validación de caché por tags en Next.js tras webhooks de MP y acciones del panel Admin.
-- [ ] Dockerizar `apps/api`, `apps/store` y `apps/admin` con límites estrictos de RAM (OOM preventivo).
-- [ ] Configurar proxy inverso Caddy para Enrutamiento por Host y SSL On-Demand automático.
-- [ ] Implementar script de backups automatizados de PostgreSQL con subida remota S3-compatible (`.agents/skills/`).
-- [ ] Diseñar pipeline CI/CD en GitHub Actions (Testing, Build, Zero-Downtime Deployment).
+- [x] Dockerizar `apps/api`, `apps/store` y `apps/admin` con límites estrictos de RAM (OOM preventivo).
+- [x] Configurar proxy inverso Caddy para Enrutamiento por Host y SSL On-Demand automático.
+- [x] Implementar script de backups automatizados de PostgreSQL con subida remota S3-compatible (`.agents/skills/`).
+- [x] Diseñar pipeline CI/CD en GitHub Actions (Testing, Build, Zero-Downtime Deployment).
+
+## Hito 9: Crecimiento, Retención y Visibilidad
+- [ ] **Fase 1 (Conversión): Motor de Cupones y Descuentos.** Esquema SQL con RLS, endpoints en NestJS, gestión en `apps/admin` y aplicación en el Checkout de `apps/store`.
+- [ ] **Fase 2 (Inteligencia de Negocio): Analítica y Dashboard.** Endpoints agregados eficientes y rediseño del Dashboard (Home) en `apps/admin` con gráficos y KPIs de ventas.
+- [ ] **Fase 3 (Adquisición): SEO Dinámico y Marketing.** Generación de `sitemap.xml`, `robots.txt` multi-tenant y configuración de Meta-tags/OpenGraph en el panel.
+- [ ] *(Opcional)* **Fase 4 (Expansión): Nuevas Integraciones.** Soporte para Stripe (pagos internacionales) o nuevos proveedores logísticos locales (Correo Argentino/Envíopack).

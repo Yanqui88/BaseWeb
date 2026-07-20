@@ -238,6 +238,30 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /**
+   * Ejecuta una consulta SQL **directamente sobre el pool**, sin ningún
+   * contexto RLS ni ALS. Equivalente a un query de sistema privilegiado.
+   *
+   * Usar ÚNICAMENTE para:
+   *  - Operaciones de sistema global que no deben ser filtradas por tenant.
+   *  - Validación de dominios (verify-domain para Caddy).
+   *  - Cualquier consulta donde el ALS no esté activo y no deba estarlo.
+   *
+   * ⚠️  NUNCA usar para queries que puedan contener datos de usuarios finales,
+   * ya que BYPASS completo de RLS.
+   *
+   * @typeParam T - Tipo de cada fila del resultado.
+   * @param text   - Sentencia SQL parametrizada.
+   * @param params - Valores para los placeholders `$N`.
+   * @returns Promesa con el `QueryResult<T>` de `pg`.
+   */
+  async queryRaw<T extends QueryResultRow = any>(
+    text: string,
+    params: any[] = [],
+  ): Promise<QueryResult<T>> {
+    return this.pool.query<T>(text, params);
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // MÉTODOS PRIVADOS
   // ──────────────────────────────────────────────────────────────────────────

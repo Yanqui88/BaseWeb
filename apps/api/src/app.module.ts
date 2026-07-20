@@ -45,6 +45,7 @@ import { EmailModule } from "./email/email.module";
 import { AppCacheModule } from "./cache/cache.module";
 import { MetricsModule } from "./metrics/metrics.module";
 import { ThrottlerRedisStorage } from "./cache/throttler-redis.storage";
+import { TenantsModule } from "./tenants/tenants.module";
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { ThrottlerRedisStorage } from "./cache/throttler-redis.storage";
     WebhooksModule,
     EmailModule,
     MetricsModule,
+    TenantsModule,
   ],
   controllers: [
     AppController,

@@ -1,15 +1,258 @@
-services:
-  db:
-    image: postgres:16
-    container_name: proyectoweb_db
-    environment:
-      POSTGRES_USER: proyectoweb
-      POSTGRES_PASSWORD: proyectoweb
-      POSTGRES_DB: proyectoweb
-    ports:
-      - "5432:5432"
-    volumes:
-      - proyectoweb_pg:/var/lib/postgresql/data
+# =============================================================================
+# docker-compose.yml — Producción multi-tenant (VPS 2GB RAM)
+#
+# Distribución de RAM (~1.8GB útiles):
+#   caddy     →  64MB  (proxy, TLS)
+#   postgres  → 512MB
+#   redis     → 128MB
+#   api       → 448MB  (heap V8 ~350MB)
+#   store     → 256MB  (heap V8 ~200MB)
+#   admin     → 256MB  (heap V8 ~200MB)
+#   SO/kernel → resto  (~136MB de margen)
+#
+# FLUJO DE RED:
+#   Internet → Caddy (80/443) → api:4000 (rutas /api/* y /webhooks/*)
+#                             → store:3000 (resto del tráfico)
+#   Admin (3001) — solo accesible por tunnel SSH, NO expuesto a Caddy.
+# =============================================================================
 
+name: proyectoweb
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # BASE DE DATOS — PostgreSQL 16 (Red interna, sin puerto expuesto al host)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: pw_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    # Puerto NO expuesto al host — solo accesible dentro de la red 'backend'
+    expose:
+      - "5432"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # CACHÉ — Redis 7 (Red interna, sin puerto expuesto al host)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: pw_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 100mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    networks:
+      - backend
+    expose:
+      - "6379"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # API — NestJS (Puerto 4000 expuesto al host / reverse proxy)
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pw_api
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      REDIS_URL: redis://redis:6379
+    # Puerto NO expuesto al host — el acceso externo pasa exclusivamente por Caddy.
+    # Para depuración local temporal: docker compose port api 4000
+    expose:
+      - "4000"
+    networks:
+      - backend
+      - frontend
+    volumes:
+      - api_uploads:/app/apps/api/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 448M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ---------------------------------------------------------------------------
+  # STORE — Next.js tienda (Puerto 3000 expuesto al host / reverse proxy)
+  # ---------------------------------------------------------------------------
+  store:
+    build:
+      context: .
+      dockerfile: apps/store/Dockerfile
+    container_name: pw_store
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:4000}
+    # Puerto NO expuesto al host — el acceso externo pasa exclusivamente por Caddy.
+    expose:
+      - "3000"
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 320M
+        reservations:
+          memory: 128M
+
+  # ---------------------------------------------------------------------------
+  # ADMIN — Next.js panel admin (Puerto 3001, expuesto solo al host local)
+  # ---------------------------------------------------------------------------
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: pw_admin
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://api:4000}
+    ports:
+      # Bind solo a localhost del VPS — el panel admin NO debe ser público sin VPN/auth
+      - "127.0.0.1:3001:3001"
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 320M
+        reservations:
+          memory: 128M
+
+  # ---------------------------------------------------------------------------
+  # CADDY — Proxy Inverso + TLS automático con On-Demand
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:2-alpine
+    container_name: pw_caddy
+    restart: unless-stopped
+    environment:
+      # Secret compartido entre Caddy y NestJS para verificar que los requests
+      # internos provienen del proxy de confianza (header X-Proxy-Secret).
+      # Genera un valor seguro con: openssl rand -hex 32
+      CADDY_PROXY_SECRET: ${CADDY_PROXY_SECRET}
+    ports:
+      # Únicos puertos expuestos al host desde Caddy
+      - "80:80"    # HTTP (redirige automáticamente a HTTPS)
+      - "443:443"  # HTTPS (TLS gestionado por Caddy + Let's Encrypt)
+      - "443:443/udp"  # HTTP/3 (QUIC) — mejora de rendimiento
+    volumes:
+      # Archivo de configuración de Caddy (montado en modo read-only)
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # caddy_data: persiste los certificados TLS emitidos por Let's Encrypt.
+      # CRÍTICO: si este volumen se pierde, Let's Encrypt puede aplicar rate-limit
+      # temporal (máx. 5 certificados duplicados / 168 horas por dominio).
+      - caddy_data:/data
+      # caddy_config: persiste la configuración en caliente de Caddy (JSON API).
+      - caddy_config:/config
+    networks:
+      # Caddy debe estar en ambas redes para poder hacer proxy a 'api' y 'store'.
+      - frontend
+      - backend
+    depends_on:
+      api:
+        condition: service_healthy
+      store:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 32M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# =============================================================================
+# REDES
+# =============================================================================
+networks:
+  # Red privada para comunicación DB/Redis/API
+  backend:
+    driver: bridge
+    internal: false
+  # Red para servicios web (acceso a internet + entre sí)
+  frontend:
+    driver: bridge
+
+# =============================================================================
+# VOLÚMENES PERSISTENTES
+# =============================================================================
 volumes:
-  proyectoweb_pg:
+  pg_data:
+    driver: local
+  api_uploads:
+    driver: local
+  # Volúmenes de Caddy — NUNCA eliminar en producción (contienen certificados TLS)
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local

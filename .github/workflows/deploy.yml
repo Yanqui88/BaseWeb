@@ -1,0 +1,122 @@
+# =============================================================================
+# .github/workflows/deploy.yml — Pipeline CI/CD del Monorepo ProyectoWeb
+# =============================================================================
+#
+# SECRETS REQUERIDOS EN GITHUB (Settings → Secrets and variables → Actions):
+#
+#   ┌─────────────────┬────────────────────────────────────────────────────────┐
+#   │ Secret Name     │ Descripción                                            │
+#   ├─────────────────┼────────────────────────────────────────────────────────┤
+#   │ VPS_HOST        │ IP pública o dominio del VPS (ej: 203.0.113.10)        │
+#   │ VPS_USER        │ Usuario SSH del VPS (ej: deploy, ubuntu, root)         │
+#   │ VPS_SSH_KEY     │ Clave privada SSH en formato PEM (contenido completo   │
+#   │                 │ del archivo ~/.ssh/id_ed25519 o id_rsa del agente CI)  │
+#   │ VPS_PROJECT_DIR │ Ruta absoluta al proyecto en el VPS                   │
+#   │                 │ (ej: /home/deploy/ProyectoWeb)                         │
+#   └─────────────────┴────────────────────────────────────────────────────────┘
+#
+# NOTA SOBRE ZERO-DOWNTIME:
+#   Docker Compose V2 implementa rolling updates automáticos: cuando se ejecuta
+#   `docker compose up -d --build`, reconstruye y reemplaza cada contenedor que
+#   tenga cambios de imagen. Los contenedores sin cambios no se reinician.
+#   Los contenedores con política `restart: unless-stopped` se mantienen activos
+#   durante el build del nuevo contenedor, logrando un despliegue cercano a
+#   Zero-Downtime. Para HA real, se requeriría un balanceador externo con
+#   múltiples réplicas (fuera del alcance de este VPS single-node).
+# =============================================================================
+
+name: CI/CD — Test, Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+# Evita despliegues simultáneos si hay varios pushes rápidos seguidos.
+# Un nuevo push cancelará el deployment anterior en curso.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────────────────────
+# JOB 1: Testing & Linting
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+  test-and-lint:
+    name: 🧪 Testing & Linting
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout del código fuente
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Instalar pnpm antes de setup-node para aprovechar el cache integrado
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          # La versión se lee automáticamente del campo "packageManager" en package.json
+          run_install: false
+
+      # 3. Configurar Node.js con cache de pnpm
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # 4. Instalar todas las dependencias del monorepo (incluyendo workspaces)
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # 5. Ejecutar linters en todos los workspaces (pnpm -r lint)
+      - name: Run linters
+        run: pnpm lint
+
+      # 6. Ejecutar suite de tests unitarios en todos los workspaces
+      #    Si algún workspace no tiene script "test", este paso fallará.
+      #    Usa `pnpm -r --if-present test` para ejecutar solo donde exista el script.
+      - name: Run unit tests
+        run: pnpm -r --if-present test
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # JOB 2: Deployment al VPS (condicionado al éxito del Job anterior)
+  # ─────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to VPS (Zero-Downtime)
+    runs-on: ubuntu-latest
+    needs: test-and-lint  # Solo se ejecuta si test-and-lint pasa exitosamente
+    environment: production  # Habilita protecciones de entorno en GitHub (ej: reviewers)
+
+    steps:
+      # 1. Conexión SSH al VPS y ejecución de comandos de despliegue
+      #    Se usa `appleboy/ssh-action` — action estándar de la comunidad con
+      #    +10M de usos, soporta claves Ed25519 y RSA, y manejo seguro de secrets.
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # Timeout de conexión SSH (el VPS puede tardar en responder bajo carga)
+          connect_timeout: 30s
+          # Script ejecutado en el VPS de forma remota:
+          script: |
+            set -euo pipefail  # Fallar en cualquier error, variable no definida o pipe roto
+
+            echo "📂 Entering project directory..."
+            cd ${{ secrets.VPS_PROJECT_DIR }}
+
+            echo "🔄 Pulling latest changes from main..."
+            git pull origin main
+
+            echo "🐳 Rebuilding and restarting containers (Zero-Downtime rolling update)..."
+            # Docker Compose V2 reconstruye solo los contenedores con cambios de imagen.
+            # Los demás permanecen activos durante el build → cercano a Zero-Downtime.
+            docker compose up -d --build --remove-orphans
+
+            echo "🧹 Cleaning up unused Docker images..."
+            # Eliminar imágenes sin tag (dangling) para liberar espacio en disco del VPS
+            docker image prune -f
+
+            echo "✅ Deployment completed successfully!"
