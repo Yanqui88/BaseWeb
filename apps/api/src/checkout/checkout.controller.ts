@@ -24,6 +24,7 @@ import {
   Post,
   UseInterceptors,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { CheckoutService } from './checkout.service.js';
 import { PublicTenantInterceptor } from '../public/public-tenant.interceptor.js';
 import { randomUUID } from 'crypto';
@@ -61,10 +62,14 @@ export class CheckoutController {
    * Crea una preferencia de pago en Mercado Pago (path directo, sin orden en DB).
    * Para el flujo completo de Guest Checkout, usar POST /orders.
    *
+   * Rate limiting especial: máx 5 preferencias por IP cada 60 segundos
+   * para evitar abuso de la API de MP y costos adicionales.
+   *
    * @param body         - Items del carrito y datos del comprador.
    * @param tenantDomain - Dominio del tenant (header x-tenant-domain).
    * @returns El `init_point` de Mercado Pago para redirigir al usuario.
    */
+  @Throttle({ short: { limit: 5, ttl: 60000 }, medium: { limit: 10, ttl: 60000 } })
   @Post('preference')
   @HttpCode(HttpStatus.CREATED)
   async createPreference(

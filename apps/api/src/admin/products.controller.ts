@@ -25,6 +25,7 @@ import {
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { DbService } from '../db/db.service';
 import { tenantCatalogKey } from '../cache/cache-keys';
+import { CacheRevalidationService } from '../cache/cache-revalidation.service.js';
 
 type CreateProductDto = {
   title: string;
@@ -41,6 +42,7 @@ export class AdminProductsController {
   constructor(
     private db: DbService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly revalidationService: CacheRevalidationService,
   ) {}
 
   /**
@@ -97,6 +99,7 @@ export class AdminProductsController {
 
     // Invalidar caché del catálogo público
     await this.invalidateCatalogCache(tenantId);
+    await this.revalidationService.revalidate(tenantId, ['products']);
 
     return result.rows[0];
   }
@@ -142,7 +145,10 @@ export class AdminProductsController {
     );
 
     // Invalidar caché del catálogo público
-    if (tenantId) await this.invalidateCatalogCache(tenantId);
+    if (tenantId) {
+      await this.invalidateCatalogCache(tenantId);
+      await this.revalidationService.revalidate(tenantId, ['products']);
+    }
 
     return result.rows[0];
   }
@@ -164,7 +170,10 @@ export class AdminProductsController {
     await this.db.query(`DELETE FROM products WHERE id = $1`, [productId]);
 
     // Invalidar caché del catálogo público
-    if (tenantId) await this.invalidateCatalogCache(tenantId);
+    if (tenantId) {
+      await this.invalidateCatalogCache(tenantId);
+      await this.revalidationService.revalidate(tenantId, ['products']);
+    }
 
     return { ok: true };
   }

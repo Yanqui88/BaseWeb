@@ -26,6 +26,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DbService } from '../db/db.service.js';
 import { OrdersService } from '../orders/orders.service.js';
+import { CacheRevalidationService } from '../cache/cache-revalidation.service.js';
 
 /** Fila mínima de la tabla `orders` para resolver el tenant. */
 interface OrderLookupRow {
@@ -59,6 +60,7 @@ export class WebhooksService {
   constructor(
     private readonly db: DbService,
     private readonly ordersService: OrdersService,
+    private readonly revalidationService: CacheRevalidationService,
   ) {}
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -123,6 +125,9 @@ export class WebhooksService {
     this.logger.log(
       `[MP Webhook] Orden ${order.id} actualizada a payment_status="${mappedStatus}" exitosamente.`,
     );
+
+    // Revalidación de caché en Next.js
+    await this.revalidationService.revalidate(order.tenant_id, ['orders']);
   }
 
   // ────────────────────────────────────────────────────────────────────────────
@@ -182,5 +187,8 @@ export class WebhooksService {
     this.logger.log(
       `[Andreani Webhook] Orden ${order.id} actualizada a shipping_status="${mappedStatus}" exitosamente.`,
     );
+
+    // Revalidación de caché en Next.js
+    await this.revalidationService.revalidate(order.tenant_id, ['orders']);
   }
 }

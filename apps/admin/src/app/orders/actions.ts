@@ -1,6 +1,7 @@
 'use server';
 
 import { cookies, headers } from 'next/headers';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { Order, OrderDetail } from 'shared';
 
 const getHeaders = async () => {
@@ -68,3 +69,35 @@ export async function fetchOrderDetail(id: string): Promise<OrderDetail | null> 
     return null;
   }
 }
+
+/**
+ * Server Action para actualizar el estado de una orden.
+ * Realiza la mutación en la base de datos a través de la API e invalida la caché local de Next.js.
+ */
+export async function updateOrderStatusAction(orderId: string, status: string): Promise<{ success: boolean }> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const headersObj = await getHeaders();
+
+  try {
+    const res = await fetch(`${apiUrl}/orders/${orderId}/status`, {
+      method: 'PUT',
+      headers: headersObj,
+      body: JSON.stringify({ status }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to update order status: ${res.statusText}`);
+    }
+
+    // Invalida la caché del panel de administración
+    revalidatePath('/orders');
+    revalidatePath(`/orders/${orderId}`);
+    revalidateTag('orders', 'max');
+
+    return { success: true };
+  } catch (error) {
+    console.error(`Error updating status for order ${orderId}:`, error);
+    return { success: false };
+  }
+}
+

@@ -17,6 +17,7 @@ import { Global, Module } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import KeyvRedis from '@keyv/redis';
 import Keyv from 'keyv';
+import { CacheRevalidationService } from './cache-revalidation.service.js';
 
 /** TTL por defecto: 5 minutos en milisegundos. */
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
@@ -58,6 +59,8 @@ function buildRedisUrl(): string | undefined {
       },
     }),
   ],
-  exports: [CacheModule],
+  providers: [CacheRevalidationService],
+  exports: [CacheModule, CacheRevalidationService],
 })
 export class AppCacheModule {}
+

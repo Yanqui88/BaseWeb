@@ -29,7 +29,8 @@ async function getBanner(): Promise<HomeBanner> {
   const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
 
   const res = await fetch(`${apiUrl}/public/${tenant}/home/banner`, {
-    cache: "no-store",
+    cache: "force-cache",
+    next: { tags: [`tenant:${tenant}:banner`] },
   });
 
   if (!res.ok) return null;
@@ -57,7 +58,10 @@ async function getProducts(): Promise<Product[]> {
 
   const res = await fetch(
     `${apiUrl}/public/${tenant}/products`,
-    { cache: "no-store" }
+    {
+      cache: "force-cache",
+      next: { tags: [`tenant:${tenant}:products`] },
+    }
   );
 
   if (!res.ok) return [];

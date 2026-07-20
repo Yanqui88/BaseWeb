@@ -42,7 +42,8 @@ export default async function ProductPage({
   const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
 
   const res = await fetch(`${apiUrl}/public/${tenant}/products/${slug}`, {
-    cache: "no-store",
+    cache: "force-cache",
+    next: { tags: [`tenant:${tenant}:products`, `tenant:${tenant}:product:${slug}`] },
   });
 
   if (!res.ok) {

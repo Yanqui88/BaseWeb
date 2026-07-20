@@ -26,6 +26,7 @@ import {
   Param,
   Post,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { MpWebhooksService } from './mp-webhooks.service.js';
 
 /** Estructura laxa del body de una notificación de Mercado Pago. */
@@ -42,6 +43,8 @@ interface MpWebhookPayload {
   id?: string | number;
 }
 
+/** Los webhooks de MP vienen de servidores externos. No aplicar rate limiting. */
+@SkipThrottle()
 @Controller('mp-webhooks')
 export class MpWebhooksController {
   private readonly logger = new Logger(MpWebhooksController.name);

@@ -215,6 +215,29 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
     return result.rows[0] ?? null;
   }
 
+  /**
+   * Retorna estadísticas en tiempo real del pool de conexiones nativo de `pg`.
+   *
+   * Útil para exponer métricas operacionales sin necesidad de herramientas
+   * externas (ej. Grafana) en entornos con recursos limitados (VPS 2 GB).
+   *
+   * @returns Objeto con:
+   *  - `totalCount`   — Número total de clientes (activos + inactivos) creados en el pool.
+   *  - `idleCount`    — Número de clientes conectados pero en espera de una query.
+   *  - `waitingCount` — Número de solicitudes pendientes esperando un cliente libre del pool.
+   *
+   * @example
+   * const stats = this.db.getPoolStats();
+   * // { totalCount: 5, idleCount: 3, waitingCount: 0 }
+   */
+  getPoolStats(): { totalCount: number; idleCount: number; waitingCount: number } {
+    return {
+      totalCount: this.pool.totalCount,
+      idleCount: this.pool.idleCount,
+      waitingCount: this.pool.waitingCount,
+    };
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
   // MÉTODOS PRIVADOS
   // ──────────────────────────────────────────────────────────────────────────

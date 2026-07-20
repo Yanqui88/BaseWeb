@@ -40,4 +40,13 @@
 - [x] Implementar suite de pruebas E2E (Playwright o Cypress) para el flujo de Checkout y Webhooks.
 - [x] Optimizar consultas a la base de datos (revisión de índices faltantes para búsqueda de productos y listado de órdenes).
 - [x] Implementar caché con Redis para respuestas públicas del catálogo de productos y configuraciones del tenant.
-- [ ] Refinar las métricas de monitoreo de Node.js (Prometheus/Grafana o métricas nativas).
+- [x] Refinar las métricas de monitoreo de Node.js (Prometheus/Grafana o métricas nativas).
+
+## Hito 8: Despliegue a Producción, Seguridad y CI/CD
+- [x] Implementar Rate Limiting con `@nestjs/throttler` y Redis para proteger rutas públicas y Checkout.
+- [x] Auditar y refactorizar Webhooks de Mercado Pago (Firma HMAC, Asincronía con BullMQ, Idempotencia estricta).
+- [x] Configurar validación de caché por tags en Next.js tras webhooks de MP y acciones del panel Admin.
+- [ ] Dockerizar `apps/api`, `apps/store` y `apps/admin` con límites estrictos de RAM (OOM preventivo).
+- [ ] Configurar proxy inverso Caddy para Enrutamiento por Host y SSL On-Demand automático.
+- [ ] Implementar script de backups automatizados de PostgreSQL con subida remota S3-compatible (`.agents/skills/`).
+- [ ] Diseñar pipeline CI/CD en GitHub Actions (Testing, Build, Zero-Downtime Deployment).

@@ -89,8 +89,35 @@ pnpm --filter api migrate:down
 | `PORT` | Puerto donde escucha el servidor NestJS (default: `4000`) |
 | `REDIS_URL` | URL completa de Redis (ej: `redis://localhost:6379`) — **opcional** |
 | `REDIS_HOST` | Host de Redis alternativo (requiere `REDIS_PORT` op.) — **opcional** |
+| `ADMIN_API_KEY` | Clave secreta para proteger los endpoints `GET /metrics/*`. Debe ser un string largo y aleatorio. Si no está definida, el módulo de métricas rechazará todas las solicitudes con 403. |
 
 > Si `REDIS_URL` y `REDIS_HOST` están ausentes, el caché usa un store en **memoria** como fallback.
+
+---
+
+## 📊 Módulo de Métricas (`src/metrics/`)
+
+Expone endpoints de observabilidad ligera para entornos con recursos limitados (VPS 2 GB) donde Grafana/Prometheus no son viables.
+
+| Archivo | Responsabilidad |
+|---------|----------------|
+| `src/metrics/metrics.module.ts` | Módulo NestJS que registra controller y service |
+| `src/metrics/metrics.controller.ts` | Endpoints `GET /metrics/health` y `GET /metrics/stats` |
+| `src/metrics/metrics.service.ts` | Lógica de recopilación de métricas y health check DB |
+| `src/metrics/admin-api-key.guard.ts` | Guard que valida cabecera `x-api-key` vs `ADMIN_API_KEY` |
+
+### Endpoints disponibles
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/metrics/health` | Ejecuta `SELECT 1` en PG; retorna `{ status: 'ok' }` |
+| `GET` | `/metrics/stats` | Retorna memoria (`process.memoryUsage`), carga (`os.loadavg`), uptime y stats del pool PG |
+
+**Uso:**
+```bash
+curl -H "x-api-key: $ADMIN_API_KEY" http://localhost:4000/metrics/health
+curl -H "x-api-key: $ADMIN_API_KEY" http://localhost:4000/metrics/stats
+```
 
 ---
 

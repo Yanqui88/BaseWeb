@@ -17,6 +17,7 @@ import { diskStorage } from "multer";
 import { extname, join } from "path";
 import { readdir } from "fs/promises";
 import { tenantConfigKey } from "../cache/cache-keys";
+import { CacheRevalidationService } from "../cache/cache-revalidation.service.js";
 
 type UpsertBannerDto = {
   desktopImageUrl: string;
@@ -35,6 +36,7 @@ export class AdminController {
   constructor(
     private db: DbService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private readonly revalidationService: CacheRevalidationService,
   ) {}
 
   @Get(":tenantSlug/home/banner")
@@ -130,6 +132,7 @@ export class AdminController {
 
       // Invalida la caché de configuración visual del tenant
       await this.cacheManager.del(tenantConfigKey(tenantId));
+      await this.revalidationService.revalidate(tenantId, ['banner', 'config']);
 
       return row;
     });
