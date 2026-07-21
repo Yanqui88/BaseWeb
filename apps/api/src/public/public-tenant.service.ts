@@ -30,6 +30,10 @@ export interface TenantPublicConfig {
   secondary_color: string | null;
   logo_url: string | null;
   whatsapp_phone: string | null;
+  seo_title: string | null;
+  seo_description: string | null;
+  seo_keywords: string | null;
+  seo_og_image: string | null;
 }
 
 @Injectable()
@@ -78,7 +82,11 @@ export class PublicTenantService {
          primary_color,
          secondary_color,
          logo_url,
-         whatsapp_phone
+         whatsapp_phone,
+         seo_title,
+         seo_description,
+         seo_keywords,
+         seo_og_image
        FROM tenants
        LIMIT 1`,
     );
@@ -95,5 +103,21 @@ export class PublicTenantService {
     }
 
     return config;
+  }
+
+  /**
+   * Obtiene los slugs de todos los productos en estado 'ACTIVE' de este tenant
+   * para la generación dinámica del sitemap.
+   */
+  async getTenantSitemap(): Promise<Array<{ slug: string; updated_at: string }>> {
+    const result = await this.db.query<{ slug: string; updated_at: string }>(
+      `SELECT
+         slug,
+         updated_at::text
+       FROM products
+       WHERE status = 'ACTIVE'
+       ORDER BY updated_at DESC`,
+    );
+    return result.rows;
   }
 }

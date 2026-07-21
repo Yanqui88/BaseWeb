@@ -31,6 +31,13 @@ type UpsertBannerDto = {
   isActive?: boolean;
 };
 
+type UpdateTenantSeoDto = {
+  seoTitle: string | null;
+  seoDescription: string | null;
+  seoKeywords: string | null;
+  seoOgImage: string | null;
+};
+
 @Controller("admin")
 export class AdminController {
   constructor(
@@ -182,5 +189,49 @@ export class AdminController {
       name,
       url: `/uploads/${name}`,
     }));
+  }
+
+  @Put(":tenantSlug/tenant/seo")
+  async updateTenantSeo(
+    @Param("tenantSlug") _tenantSlug: string,
+    @Body() dto: UpdateTenantSeoDto,
+  ) {
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException("No tenant context");
+    }
+
+    const query = `
+      UPDATE tenants
+      SET 
+        seo_title = $1,
+        seo_description = $2,
+        seo_keywords = $3,
+        seo_og_image = $4,
+        updated_at = NOW()
+      WHERE id = $5
+      RETURNING 
+        id,
+        name,
+        domain,
+        seo_title AS "seoTitle",
+        seo_description AS "seoDescription",
+        seo_keywords AS "seoKeywords",
+        seo_og_image AS "seoOgImage"
+    `;
+
+    const result = await this.db.query(query, [
+      dto.seoTitle ?? null,
+      dto.seoDescription ?? null,
+      dto.seoKeywords ?? null,
+      dto.seoOgImage ?? null,
+      tenantId,
+    ]);
+
+    // Invalida la caché de configuración visual del tenant
+    await this.cacheManager.del(tenantConfigKey(tenantId));
+    await this.revalidationService.revalidate(tenantId, ['config']);
+
+    return result.rows[0];
   }
 }

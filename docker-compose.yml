@@ -35,7 +35,9 @@ services:
       - pg_data:/var/lib/postgresql/data
     networks:
       - backend
-    # Puerto NO expuesto al host — solo accesible dentro de la red 'backend'
+    # Puerto expuesto al host para desarrollo/migraciones
+    ports:
+      - "5432:5432"
     expose:
       - "5432"
     deploy:

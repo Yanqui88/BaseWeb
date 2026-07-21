@@ -88,6 +88,20 @@ Este archivo actúa como el registro oficial de decisiones de diseño, cambios a
   * **Logística Localizada:** Las tarifas y etiquetas de envío nacional por correo se cotizarán utilizando el Código Postal del local activo donde el comprador realiza su orden. Cada local podrá configurar individualmente los métodos de envío que ofrece (ej. solo retiro, moto local o correo nacional).
   * **Navegación Flexible:** Si un producto no tiene stock en el local activo, el frontend le sugerirá al usuario cambiar de sucursal para ver disponibilidad en la central o sucursales alternativas con soporte de envío nacional.
 
+### [SaaS Monetización, Trials Flexibles y Ciclo de Vida del Tenant]
+* **Fecha:** 2026-07-21
+* **Contexto:** Establecer las reglas de negocio para cobrar por el uso de la plataforma, permitiendo periodos de prueba (ej. 1, 3 o 6 meses) o uso gratuito (ej. familiares), y definiendo qué sucede si un comercio deja de pagar.
+* **Decisión:** **Motor de Suscripciones B2B con Ciclo de Vida Definido por Variables**.
+  * Se implementarán tablas para gestionar la suscripción del tenant (`tenant_billing`).
+  * El periodo de prueba será una fecha (`trial_ends_at`) modificable por el Superadmin, permitiendo dar X meses gratis a voluntad a cada tenant.
+  * El cobro se automatizará (idealmente con integraciones locales en el futuro, o chequeo manual/transferencia en etapas tempranas si se pospone Stripe).
+  * **Ciclo de vida por falta de pago:** Si un comercio no paga, entra en un **Periodo de Gracia `X`** (se notifica al cliente, la tienda sigue online). Finalizado `X`, la tienda pasa a estado **Suspendida** (el frontend público muestra un mensaje de mantenimiento o se desconecta temporalmente, el admin muestra aviso de pago). Tras un periodo **`Y`** en suspensión, se procede a la **Eliminación Lógica/Física** de los datos. Pagar en cualquier momento antes de `Y` restaura todo el servicio automáticamente.
+
+### [Auditorías de Seguridad y Pulido UI/UX (Prioridad Cero)]
+* **Fecha:** 2026-07-21
+* **Contexto:** Previo al lanzamiento real, se requiere garantizar que no existan fugas de datos entre tenants (vulnerabilidades RLS) y que la experiencia de usuario sea perfecta.
+* **Decisión:** **Auditoría Estricta y Refinamiento**. Se asignarán Workers específicos de alto razonamiento (Claude Opus 4.6) exclusivamente para intentar vulnerar el sistema de RLS y endpoints, garantizando aislamiento total. Simultáneamente, se dedicará una fase completa a la revisión exhaustiva de UI en `apps/store`, garantizando que todas las variables de personalización funcionen correctamente y que no haya botones muertos.
+
 ---
 
 ## 🚀 3. Historial de Commits / Pushes de Git
@@ -129,3 +143,8 @@ Usa este registro para sincronizar tus pushes a GitHub. Cada vez que implementem
 | 2026-07-20 | `feat: nestjs-security-and-s3-backups` | **[Hito 8 - Fase 5]** Cierre del anillo de seguridad implementando en NestJS el endpoint de validación TLS (`verify-domain` bypass RLS) para Caddy y el `ProxyGuard` validando el secreto inyectado. Adicionalmente, creación del script automatizado de resguardo `backup.sh` (Postgres a S3/R2) integrado como Habilidad (`db-backup-s3.md`) en la carpeta `.agents/skills`. | **Completado** |
 | 2026-07-20 | `feat: github-actions-ci-cd` | **[Hito 8 - Fase 6]** Diseño e implementación de pipeline de CI/CD en `.github/workflows/deploy.yml`. Flujo automatizado para ejecución de linters, tests unitarios en monorepo, y despliegue condicional por SSH al VPS con estrategia Zero-Downtime mediante `docker compose up -d --build`. | **Completado** |
 | 2026-07-20 | `chore: hito-8-completado` | **[FIN DE CICLO - Hito 8 Completado]** Se declara el cierre formal del Hito 8 (Producción, Seguridad y CI/CD) completando la arquitectura total del SaaS y estableciendo los cimientos para escalabilidad real en un VPS de bajos recursos (2GB). | **Completado** |
+| 2026-07-20 | `feat: hito-9-coupons-system` | **[Hito 9 - Fase 1]** Implementación completa del Motor de Cupones. SQL con RLS en `coupons`, backend NestJS con endpoints protegidos/públicos de validación, panel administrativo en Next.js (Glassmorphism, buscador, modal creación) e integración en Checkout de `apps/store` aplicando descuentos. | **Completado** |
+| 2026-07-20 | `feat: hito-9-analytics-dashboard` | **[Hito 9 - Fase 2]** Implementación de Analítica de Negocio (BI). Endpoints optimizados en NestJS para cálculo de KPIs del mes, listado de productos más vendidos y gráfico de área de ventas diarias. Dashboard en `apps/admin` con Recharts y diseño Glassmorphism premium. | **Completado** |
+| 2026-07-20 | `feat: hito-9-seo-dynamic-marketing` | **[Hito 9 - Fase 3]** Configuración de SEO dinámico multi-tenant. Migración para columnas SEO en `tenants`, endpoints del backend y formulario con vistas previas Google/Redes Sociales en `apps/admin`. En `apps/store`, metadatos dinámicos basados en host y generación XML de `sitemap.xml` y `robots.txt` dinámicos. | **Completado** |
+| 2026-07-20 | `chore: hito-9-core-completado` | **[FIN DE CICLO - Hito 9 Completado]** Se declara la finalización de las fases core del Hito 9 (Cupones, Analítica y SEO). El SaaS cuenta ahora con fuertes herramientas de marketing, retención y visibilidad. Queda la Fase 4 (Stripe/Correo) como opcional en el backlog. | **Completado** |
+| 2026-07-21 | `chore: hito-10-planning-monetizacion` | **[FIN DE CICLO - Cambio de Rumbo]** Se omite la Fase 4 del Hito 9. Se planifica el Hito 10: Monetización (Trials variables, Billing, Lifecycle con Suspensión/Eliminación), Importador CSV, Multi-moneda, Auditoría estricta de Seguridad y Pulido UI/UX total. | **Completado** |

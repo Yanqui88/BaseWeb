@@ -1,6 +1,6 @@
-import { ColumnDefinitions, MigrationBuilder } from 'node-pg-migrate';
+import { MigrationBuilder } from 'node-pg-migrate';
 
-export const shorthands: ColumnDefinitions | undefined = undefined;
+export const shorthands = undefined;
 
 /**
  * Migración de optimización de índices para alta concurrencia.

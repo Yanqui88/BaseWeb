@@ -14,6 +14,13 @@ type CheckoutCustomer = {
 };
 
 export default function CheckoutForm() {
+  // Hardcoded cart item for guest checkout demo
+  const cartItem: CheckoutItem = {
+    title: "Zapatillas de Running",
+    quantity: 1,
+    unit_price: 45000,
+  };
+
   // Form fields state
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -30,17 +37,74 @@ export default function CheckoutForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Coupon states
+  const [couponInput, setCouponInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount_type: "percentage" | "fixed_amount";
+    discount_value: number;
+  } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [couponMessage, setCouponMessage] = useState<string | null>(null);
+
+  const subtotal = cartItem.unit_price * cartItem.quantity;
+  const discountAmount = appliedCoupon
+    ? appliedCoupon.discount_type === "percentage"
+      ? (subtotal * appliedCoupon.discount_value) / 100
+      : appliedCoupon.discount_value
+    : 0;
+  const finalTotal = Math.max(0, subtotal - discountAmount + shippingCost);
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+
+    setCouponError(null);
+    setCouponMessage(null);
+    setLoading(true);
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+    const tenantDomain = typeof window !== "undefined" ? window.location.hostname : "localhost";
+
+    try {
+      const code = couponInput.trim().toUpperCase();
+      const res = await fetch(`${apiUrl}/public/coupons/validate/${code}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "x-tenant-domain": tenantDomain,
+        },
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.message || "Código de descuento inválido o vencido.");
+      }
+
+      const data = json.data;
+      setAppliedCoupon(data);
+      setCouponMessage(`¡Cupón ${data.code} aplicado con éxito!`);
+    } catch (err: any) {
+      setCouponError(err.message || "Error al validar el cupón.");
+      setAppliedCoupon(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponInput("");
+    setCouponError(null);
+    setCouponMessage(null);
+  };
+
   const handleShippingSelected = (cost: number, name: string | null) => {
     setShippingCost(cost);
     setShippingMethodName(name);
   };
 
-  // Hardcoded cart item for guest checkout demo
-  const cartItem: CheckoutItem = {
-    title: "Zapatillas de Running",
-    quantity: 1,
-    unit_price: 45000,
-  };
+
 
   const formatARS = (value: number) => {
     return new Intl.NumberFormat("es-AR", {
@@ -73,7 +137,12 @@ export default function CheckoutForm() {
 
     try {
       const subtotal = cartItem.unit_price * cartItem.quantity;
-      const total = subtotal + shippingCost;
+      const discountAmount = appliedCoupon
+        ? appliedCoupon.discount_type === "percentage"
+          ? (subtotal * appliedCoupon.discount_value) / 100
+          : appliedCoupon.discount_value
+        : 0;
+      const total = Math.max(0, subtotal - discountAmount + shippingCost);
 
       // Mapear el método de envío al tipo del DTO
       const shippingMethodMap: Record<string, string> = {
@@ -290,12 +359,70 @@ export default function CheckoutForm() {
             </div>
           </div>
 
+          {/* Campo de Código de Descuento */}
+          <div className="border-t border-white/[0.08] pt-4 mb-6">
+            <label htmlFor="couponCode" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+              ¿Tienes un código de descuento?
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="couponCode"
+                type="text"
+                disabled={loading || !!appliedCoupon}
+                value={couponInput}
+                onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                placeholder="Ej. VERANO50"
+                className="flex-1 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2 text-sm text-white placeholder-slate-500 transition-all duration-300 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:opacity-50"
+              />
+              {appliedCoupon ? (
+                <button
+                  type="button"
+                  onClick={handleRemoveCoupon}
+                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-xl text-sm font-bold transition-all duration-300"
+                >
+                  Remover
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleApplyCoupon}
+                  disabled={loading || !couponInput.trim()}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-550 disabled:bg-slate-800 disabled:text-slate-550 text-white rounded-xl text-sm font-bold transition-all duration-300 active:scale-95 disabled:pointer-events-none"
+                >
+                  Aplicar
+                </button>
+              )}
+            </div>
+
+            {/* Mensajes de Validación */}
+            {couponMessage && (
+              <p className="mt-2 text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                {couponMessage}
+              </p>
+            )}
+            {couponError && (
+              <p className="mt-2 text-xs font-semibold text-red-400 flex items-center gap-1.5 animate-fade-in">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                {couponError}
+              </p>
+            )}
+          </div>
+
           {/* Subtotal, envio and total details */}
           <div className="border-t border-white/[0.08] pt-4 space-y-3 mb-6">
             <div className="flex justify-between text-sm text-slate-400">
               <span>Subtotal</span>
-              <span className="text-white font-medium">{formatARS(cartItem.unit_price * cartItem.quantity)}</span>
+              <span className="text-white font-medium">{formatARS(subtotal)}</span>
             </div>
+
+            {appliedCoupon && (
+              <div className="flex justify-between text-sm text-emerald-400 font-medium">
+                <span>Descuento ({appliedCoupon.code})</span>
+                <span>-{formatARS(discountAmount)}</span>
+              </div>
+            )}
+
             <div className="flex justify-between text-sm text-slate-400 items-center">
               <span className="truncate max-w-[200px]">
                 Envío {shippingMethodName && `(${shippingMethodName})`}
@@ -311,7 +438,7 @@ export default function CheckoutForm() {
             <div className="border-t border-white/[0.08] pt-4 flex justify-between text-base font-bold text-white">
               <span>Total</span>
               <span className="text-lg bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent font-extrabold">
-                {formatARS(cartItem.unit_price * cartItem.quantity + shippingCost)}
+                {formatARS(finalTotal)}
               </span>
             </div>
           </div>

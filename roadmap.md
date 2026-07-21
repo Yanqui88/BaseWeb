@@ -52,7 +52,15 @@
 - [x] Diseñar pipeline CI/CD en GitHub Actions (Testing, Build, Zero-Downtime Deployment).
 
 ## Hito 9: Crecimiento, Retención y Visibilidad
-- [ ] **Fase 1 (Conversión): Motor de Cupones y Descuentos.** Esquema SQL con RLS, endpoints en NestJS, gestión en `apps/admin` y aplicación en el Checkout de `apps/store`.
-- [ ] **Fase 2 (Inteligencia de Negocio): Analítica y Dashboard.** Endpoints agregados eficientes y rediseño del Dashboard (Home) en `apps/admin` con gráficos y KPIs de ventas.
-- [ ] **Fase 3 (Adquisición): SEO Dinámico y Marketing.** Generación de `sitemap.xml`, `robots.txt` multi-tenant y configuración de Meta-tags/OpenGraph en el panel.
-- [ ] *(Opcional)* **Fase 4 (Expansión): Nuevas Integraciones.** Soporte para Stripe (pagos internacionales) o nuevos proveedores logísticos locales (Correo Argentino/Envíopack).
+- [x] **Fase 1 (Conversión): Motor de Cupones y Descuentos.** Esquema SQL con RLS, endpoints en NestJS, gestión en `apps/admin` y aplicación en el Checkout de `apps/store`.
+- [x] **Fase 2 (Inteligencia de Negocio): Analítica y Dashboard.** Endpoints agregados eficientes y rediseño del Dashboard (Home) en `apps/admin` con gráficos y KPIs de ventas.
+- [x] **Fase 3 (Adquisición): SEO Dinámico y Marketing.** Generación de `sitemap.xml`, `robots.txt` multi-tenant y configuración de Meta-tags/OpenGraph en el panel.
+- [x] *(Omitida)* **Fase 4 (Expansión): Nuevas Integraciones.** Se pospone Stripe/Correo para enfocarse en el mercado local y la monetización del SaaS.
+
+## Hito 10: Monetización SaaS, Seguridad Enterprise y Pulido UI/UX
+- [ ] **Fase 1 (Billing & Trials):** Motor de suscripciones B2B. Configuración de periodos de prueba gratuitos variables por tenant (1, 3, 6 meses). Cobro automático vía MP.
+- [ ] **Fase 2 (Lifecycle & Notificaciones):** Cronjobs en NestJS para gestión de morosos. Periodo de gracia `X` (tienda online, pero con aviso), suspensión de tienda, y eliminación definitiva tras periodo `Y`. Restauración automática al pagar.
+- [ ] **Fase 3 (Seguridad):** Auditoría exhaustiva de RLS (Row-Level Security) y endpoints con Claude Opus 4.6. Fortalecimiento contra inyecciones y escalamiento de privilegios.
+- [ ] **Fase 4 (Operativa B2B):** Importador/Exportador masivo de productos vía CSV.
+- [ ] **Fase 5 (Multi-moneda):** Soporte base para mostrar precios en múltiples monedas (ej. ARS / USD).
+- [ ] **Fase 6 (UI/UX Polish):** Revisión de extremo a extremo de `apps/store` y `apps/admin`. Asegurar funcionamiento de todos los botones y ampliar opciones de personalización (colores, diseño) para cada tenant.

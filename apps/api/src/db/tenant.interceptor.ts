@@ -46,22 +46,28 @@ export class TenantInterceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const tenantSlug: string | undefined = request.params.tenantSlug;
+    
+    // Si la ruta no tiene tenantSlug, intentamos obtener el tenantId del JWT del usuario
+    let tenantId = request.user?.tenantId;
+
+    if (!tenantId && tenantSlug) {
+      // Resolvemos el tenant desde la base de datos usando el slug de la URL.
+      const tenant = await this.db.getTenantBySlug(tenantSlug);
+      if (!tenant) {
+        throw new NotFoundException(
+          `La tienda con el identificador '${tenantSlug}' no existe.`,
+        );
+      }
+      tenantId = tenant.id;
+    }
 
     // Ruta sin tenant (p.ej. endpoints de sistema o superadmin): flujo normal.
-    if (!tenantSlug) {
+    if (!tenantId) {
       return next.handle();
     }
 
-    // Resolvemos el tenant desde la base de datos usando el slug de la URL.
-    const tenant = await this.db.getTenantBySlug(tenantSlug);
-    if (!tenant) {
-      throw new NotFoundException(
-        `La tienda con el identificador '${tenantSlug}' no existe.`,
-      );
-    }
-
     // Construimos el contexto RLS con el tenantId resuelto.
-    const rlsContext: RlsContext = { tenantId: tenant.id };
+    const rlsContext: RlsContext = { tenantId };
 
     /**
      * Envolvemos el Observable de RxJS dentro de `als.run()`.

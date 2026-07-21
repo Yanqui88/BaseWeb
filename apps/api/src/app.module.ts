@@ -46,6 +46,8 @@ import { AppCacheModule } from "./cache/cache.module";
 import { MetricsModule } from "./metrics/metrics.module";
 import { ThrottlerRedisStorage } from "./cache/throttler-redis.storage";
 import { TenantsModule } from "./tenants/tenants.module";
+import { CouponsModule } from "./coupons/coupons.module.js";
+import { AnalyticsModule } from "./analytics/analytics.module.js";
 
 @Module({
   imports: [
@@ -90,6 +92,8 @@ import { TenantsModule } from "./tenants/tenants.module";
     EmailModule,
     MetricsModule,
     TenantsModule,
+    CouponsModule,
+    AnalyticsModule,
   ],
   controllers: [
     AppController,

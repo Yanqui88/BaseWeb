@@ -52,4 +52,9 @@ export class PublicTenantController {
   async getTenantConfig(): Promise<TenantPublicConfig | null> {
     return this.publicTenantService.getTenantPublicConfig();
   }
+
+  @Get('sitemap')
+  async getTenantSitemap(): Promise<Array<{ slug: string; updated_at: string }>> {
+    return this.publicTenantService.getTenantSitemap();
+  }
 }
