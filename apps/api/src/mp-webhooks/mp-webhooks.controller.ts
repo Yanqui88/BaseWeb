@@ -24,6 +24,7 @@ import {
   HttpStatus,
   Logger,
   Param,
+  ParseUUIDPipe,
   Post,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -63,7 +64,7 @@ export class MpWebhooksController {
   @Post(':tenantId')
   @HttpCode(HttpStatus.OK)
   handleWebhook(
-    @Param('tenantId') tenantId: string,
+    @Param('tenantId', new ParseUUIDPipe({ version: '4' })) tenantId: string,
     @Body() body: MpWebhookPayload,
   ): { received: boolean } {
     // Extraer el tipo de evento (soporta tanto IPN legacy como webhooks modernos)

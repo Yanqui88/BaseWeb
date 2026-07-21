@@ -58,9 +58,9 @@
 - [x] *(Omitida)* **Fase 4 (Expansión): Nuevas Integraciones.** Se pospone Stripe/Correo para enfocarse en el mercado local y la monetización del SaaS.
 
 ## Hito 10: Monetización SaaS, Seguridad Enterprise y Pulido UI/UX
-- [ ] **Fase 1 (Billing & Trials):** Motor de suscripciones B2B. Configuración de periodos de prueba gratuitos variables por tenant (1, 3, 6 meses). Cobro automático vía MP.
-- [ ] **Fase 2 (Lifecycle & Notificaciones):** Cronjobs en NestJS para gestión de morosos. Periodo de gracia `X` (tienda online, pero con aviso), suspensión de tienda, y eliminación definitiva tras periodo `Y`. Restauración automática al pagar.
-- [ ] **Fase 3 (Seguridad):** Auditoría exhaustiva de RLS (Row-Level Security) y endpoints con Claude Opus 4.6. Fortalecimiento contra inyecciones y escalamiento de privilegios.
-- [ ] **Fase 4 (Operativa B2B):** Importador/Exportador masivo de productos vía CSV.
-- [ ] **Fase 5 (Multi-moneda):** Soporte base para mostrar precios en múltiples monedas (ej. ARS / USD).
-- [ ] **Fase 6 (UI/UX Polish):** Revisión de extremo a extremo de `apps/store` y `apps/admin`. Asegurar funcionamiento de todos los botones y ampliar opciones de personalización (colores, diseño) para cada tenant.
+- [x] **Fase 1 (Billing & Trials):** Motor de suscripciones B2B. Configuración de periodos de prueba gratuitos variables por tenant (1, 3, 6 meses). Cobro automático vía MP.
+- [x] **Fase 2 (Lifecycle & Notificaciones):** Cronjobs en NestJS para gestión de morosos. Periodo de gracia `X` (tienda online, pero con aviso), suspensión de tienda, y eliminación definitiva tras periodo `Y`. Restauración automática al pagar.
+- [x] **Fase 3 (Seguridad):** Auditoría exhaustiva de RLS (Row-Level Security) y endpoints con Claude Opus 4.6. Fortalecimiento contra inyecciones y escalamiento de privilegios. _(Migración `1785200000000_security-audit-rls-hardening` aplicada: RLS en `webhook_events`, políticas normalizadas con NULLIF+WITH CHECK en `tenant_mp_credentials`, `tenant_subscriptions`, `mp_transactions`, `sessions`)_
+- [x] **Fase 4 (Operativa B2B):** Importador/Exportador masivo de productos vía CSV. _(Backend: `POST /:slug/products/import` + `GET /:slug/products/export` en NestJS con `csv-parser`, Upsert por SKU en transacción RLS, validación por fila. Frontend: botones Exportar/Importar CSV en `/products` con modal glassmorphism drag-and-drop, estados de carga y reporte de resultados)_
+- [x] *(Omitida)* **Fase 5 (Multi-moneda):** Soporte base para mostrar precios en múltiples monedas (ej. ARS / USD).
+- [x] **Fase 6 (UI/UX Polish):** Revisión de extremo a extremo de `apps/store` y `apps/admin`. Asegurar funcionamiento de todos los botones y ampliar opciones de personalización (colores, diseño) para cada tenant.

@@ -21,6 +21,7 @@
 import { Module } from "@nestjs/common";
 import { ThrottlerModule, ThrottlerGuard } from "@nestjs/throttler";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
+import { ScheduleModule } from "@nestjs/schedule";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 
@@ -48,6 +49,7 @@ import { ThrottlerRedisStorage } from "./cache/throttler-redis.storage";
 import { TenantsModule } from "./tenants/tenants.module";
 import { CouponsModule } from "./coupons/coupons.module.js";
 import { AnalyticsModule } from "./analytics/analytics.module.js";
+import { BillingModule } from "./billing/billing.module.js";
 
 @Module({
   imports: [
@@ -56,6 +58,10 @@ import { AnalyticsModule } from "./analytics/analytics.module.js";
       rootPath: join(process.cwd(), "uploads"),
       serveRoot: "/uploads",
     }),
+
+    // ── Scheduler de tareas (Cronjobs) ────────────────────────────────────────
+    // Habilita el decorador @Cron() en toda la aplicación (BillingModule, etc.)
+    ScheduleModule.forRoot(),
 
     // ── Caché global con Redis (o en memoria si REDIS_URL no está definida) ──
     AppCacheModule,
@@ -94,6 +100,8 @@ import { AnalyticsModule } from "./analytics/analytics.module.js";
     TenantsModule,
     CouponsModule,
     AnalyticsModule,
+    // ── Hito 10: Billing y Ciclo de Vida del Tenant ──────────────────────────
+    BillingModule,
   ],
   controllers: [
     AppController,

@@ -55,3 +55,39 @@ export interface TenantPublicConfig {
   logo_url: string | null;
   whatsapp_phone: string | null;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hito 10 – Monetización SaaS: Tipos de Billing y Ciclo de Vida del Tenant
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Estados del ciclo de vida de la facturación de un tenant.
+ *
+ * Transiciones válidas (gestionadas por el Cronjob diario):
+ *   trial → grace_period → suspended → deleted
+ *   active → grace_period → suspended → deleted
+ */
+export type TenantBillingStatus =
+  | 'trial'         // Período de prueba gratuito activo
+  | 'active'        // Suscripción vigente y al día
+  | 'grace_period'  // Pago vencido, en período de gracia antes de suspensión
+  | 'suspended'     // Tenant suspendido (store offline)
+  | 'deleted';      // Eliminación lógica tras suspensión extendida
+
+/**
+ * Registro de billing de un tenant.
+ * Expuesto en la API del superadmin (GET /admin/tenants/:id/billing).
+ */
+export interface TenantBilling {
+  tenant_id: string;
+  status: TenantBillingStatus;
+  trial_ends_at: string | null;
+  next_billing_date: string | null;
+  grace_period_ends_at: string | null;
+  suspended_at: string | null;
+  deleted_at: string | null;
+  plan_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+

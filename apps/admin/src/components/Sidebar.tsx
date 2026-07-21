@@ -10,7 +10,7 @@ interface SidebarItem {
   icon: React.ReactNode;
 }
 
-export default function Sidebar() {
+export default function Sidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const pathname = usePathname();
 
   const menuItems: SidebarItem[] = [
@@ -86,6 +86,7 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              onClick={() => onCloseMobile?.()}
               className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 ease-out ${
                 isActive
                   ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 shadow-sm shadow-indigo-500/5'

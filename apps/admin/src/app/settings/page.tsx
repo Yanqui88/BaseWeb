@@ -129,6 +129,70 @@ export default function SettingsPage() {
       setError('Error al actualizar la configuración SEO.');
     }
   };
+  const colorPresets = [
+    { name: 'Índigo Moderno', primary: '#6366f1', secondary: '#10b981' },
+    { name: 'Esmeralda', primary: '#059669', secondary: '#3b82f6' },
+    { name: 'Negro & Oro', primary: '#18181b', secondary: '#d97706' },
+    { name: 'Cyberpunk', primary: '#d946ef', secondary: '#06b6d4' },
+    { name: 'Lavanda', primary: '#8b5cf6', secondary: '#f43f5e' },
+  ];
+
+  const handleApplyPreset = (primary: string, secondary: string) => {
+    setConfig((prev) => ({ ...prev, primary_color: primary, secondary_color: secondary }));
+    if (saveSuccess) setSaveSuccess(false);
+  };
+
+  const handleUploadLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    setError(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch(`${apiUrl}/admin/${tenant}/uploads`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Error al subir el logotipo');
+      }
+
+      const json = await res.json() as { url: string };
+      setConfig((prev) => ({ ...prev, logo_url: json.url }));
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || 'Error al subir el logotipo.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleSaveVisual = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+    
+    // Simulate API call for Visual settings (since backend SQL shouldn't be altered in this phase)
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    
+    // We save settings in localStorage so that we persist visual modifications locally in the client
+    localStorage.setItem('tenant_visual_config', JSON.stringify({
+      primary_color: config.primary_color,
+      secondary_color: config.secondary_color,
+      logo_url: config.logo_url,
+      name: config.name,
+    }));
+
+    setIsSaving(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
 
   function resolveImageUrl(url?: string | null) {
     if (!url) return '';
@@ -192,7 +256,7 @@ export default function SettingsPage() {
           <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500" />
             
-            <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+            <form onSubmit={handleSaveVisual} className="space-y-6">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -201,9 +265,27 @@ export default function SettingsPage() {
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Store Name Input */}
+                <div className="space-y-2 md:col-span-2">
+                  <label htmlFor="name" className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Nombre del Tenant / Tienda
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={config.name}
+                    onChange={(e) => {
+                      setConfig((prev) => ({ ...prev, name: e.target.value }));
+                      if (saveSuccess) setSaveSuccess(false);
+                    }}
+                    className="w-full px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white transition-all duration-200"
+                  />
+                </div>
+
                 {/* Domain Input */}
                 <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="domain" className="block text-xs font-semibold uppercase tracking-wider text-zinc-405 text-zinc-400">
+                  <label htmlFor="domain" className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">
                     Dominio Personalizado
                   </label>
                   <div className="relative">
@@ -216,28 +298,42 @@ export default function SettingsPage() {
                       name="domain"
                       value={config.domain}
                       disabled
-                      className="w-full pl-18 pr-4 py-2.5 bg-zinc-955 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none text-zinc-450 focus:border-indigo-500 transition-all duration-200"
+                      className="w-full pl-18 pr-4 py-2.5 bg-zinc-950/40 border border-zinc-800/60 rounded-xl text-sm text-zinc-500 focus:outline-none"
                     />
                   </div>
                   <p className="text-xs text-zinc-500">
-                    Asegúrate de apuntar tu registro CNAME a nuestros servidores.
+                    El dominio de producción no es editable directamente por motivos de seguridad SSL.
                   </p>
                 </div>
 
-                {/* Logo URL Input */}
+                {/* Logo Upload Input */}
                 <div className="space-y-2 md:col-span-2">
-                  <label htmlFor="logo_url" className="block text-xs font-semibold uppercase tracking-wider text-zinc-405 text-zinc-400">
-                    URL del Logotipo
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Logotipo de la Tienda
                   </label>
-                  <div className="relative">
+                  <div className="flex flex-col md:flex-row gap-3">
                     <input
-                      type="url"
+                      type="text"
                       id="logo_url"
                       name="logo_url"
                       value={config.logo_url || ''}
-                      disabled
-                      className="w-full px-4 py-2.5 bg-zinc-955 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none text-zinc-450 focus:border-indigo-500 transition-all duration-200"
+                      onChange={(e) => {
+                        setConfig((prev) => ({ ...prev, logo_url: e.target.value }));
+                        if (saveSuccess) setSaveSuccess(false);
+                      }}
+                      className="flex-1 px-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white placeholder-zinc-600 transition-all duration-200"
+                      placeholder="https://ejemplo.com/logo.png o sube un archivo"
                     />
+                    <label className="relative cursor-pointer flex items-center justify-center px-5 py-2.5 bg-zinc-950 hover:bg-zinc-850 border border-zinc-800 active:scale-98 text-zinc-300 text-sm font-semibold rounded-xl transition-all duration-200 shadow-md">
+                      {uploadingImage ? 'Subiendo...' : 'Subir Logotipo'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUploadLogo}
+                        disabled={uploadingImage}
+                        className="hidden"
+                      />
+                    </label>
                   </div>
                 </div>
 
@@ -253,17 +349,31 @@ export default function SettingsPage() {
                         id="primary_color"
                         name="primary_color"
                         value={config.primary_color || ''}
-                        disabled
-                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-955 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none text-zinc-450 focus:border-indigo-500 transition-all duration-200"
+                        onChange={(e) => {
+                          setConfig((prev) => ({ ...prev, primary_color: e.target.value }));
+                          if (saveSuccess) setSaveSuccess(false);
+                        }}
+                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white transition-all duration-200"
                       />
                       <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-500 text-sm">
                         #
                       </div>
                     </div>
-                    <div
-                      className="w-11 h-11 p-1 bg-zinc-950 border border-zinc-800 rounded-xl"
-                      style={{ backgroundColor: config.primary_color || '#6366f1' }}
-                    />
+                    <label className="relative w-11 h-11 bg-zinc-950 border border-zinc-850 rounded-xl cursor-pointer overflow-hidden active:scale-95 transition-all">
+                      <input
+                        type="color"
+                        value={config.primary_color && config.primary_color.startsWith('#') ? config.primary_color : '#6366f1'}
+                        onChange={(e) => {
+                          setConfig((prev) => ({ ...prev, primary_color: e.target.value }));
+                          if (saveSuccess) setSaveSuccess(false);
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <div
+                        className="w-full h-full rounded-lg"
+                        style={{ backgroundColor: config.primary_color || '#6366f1' }}
+                      />
+                    </label>
                   </div>
                 </div>
 
@@ -279,19 +389,84 @@ export default function SettingsPage() {
                         id="secondary_color"
                         name="secondary_color"
                         value={config.secondary_color || ''}
-                        disabled
-                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-955 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none text-zinc-450 focus:border-indigo-500 transition-all duration-200"
+                        onChange={(e) => {
+                          setConfig((prev) => ({ ...prev, secondary_color: e.target.value }));
+                          if (saveSuccess) setSaveSuccess(false);
+                        }}
+                        className="w-full pl-10 pr-4 py-2.5 bg-zinc-950 border border-zinc-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-white transition-all duration-200"
                       />
                       <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-500 text-sm">
                         #
                       </div>
                     </div>
-                    <div
-                      className="w-11 h-11 p-1 bg-zinc-950 border border-zinc-800 rounded-xl"
-                      style={{ backgroundColor: config.secondary_color || '#10b981' }}
-                    />
+                    <label className="relative w-11 h-11 bg-zinc-950 border border-zinc-850 rounded-xl cursor-pointer overflow-hidden active:scale-95 transition-all">
+                      <input
+                        type="color"
+                        value={config.secondary_color && config.secondary_color.startsWith('#') ? config.secondary_color : '#10b981'}
+                        onChange={(e) => {
+                          setConfig((prev) => ({ ...prev, secondary_color: e.target.value }));
+                          if (saveSuccess) setSaveSuccess(false);
+                        }}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      />
+                      <div
+                        className="w-full h-full rounded-lg"
+                        style={{ backgroundColor: config.secondary_color || '#10b981' }}
+                      />
+                    </label>
                   </div>
                 </div>
+
+                {/* Palettes Preset Picker */}
+                <div className="space-y-2.5 md:col-span-2 border-t border-zinc-800/80 pt-4">
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400">
+                    Paletas Recomendadas (Presets)
+                  </label>
+                  <div className="flex flex-wrap gap-2.5">
+                    {colorPresets.map((preset) => (
+                      <button
+                        key={preset.name}
+                        type="button"
+                        onClick={() => handleApplyPreset(preset.primary, preset.secondary)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-950 hover:bg-zinc-850 border border-zinc-800 text-xs font-semibold text-zinc-300 transition-all hover:scale-[1.02] active:scale-95 cursor-pointer shadow-sm"
+                      >
+                        <span className="flex items-center gap-1">
+                          <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: preset.primary }} />
+                          <span className="w-3.5 h-3.5 rounded-full -ml-1.5" style={{ backgroundColor: preset.secondary }} />
+                        </span>
+                        <span>{preset.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-zinc-800/80">
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="relative inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-650 hover:bg-indigo-600 active:scale-98 text-white text-sm font-semibold rounded-xl transition-all duration-300 shadow-md shadow-indigo-600/10 disabled:opacity-50 cursor-pointer"
+                >
+                  {isSaving ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth={4} />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Guardando apariencia...
+                    </>
+                  ) : saveSuccess ? (
+                    <>
+                      <svg className="w-4 h-4 text-emerald-400 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                      ¡Apariencia Guardada!
+                    </>
+                  ) : (
+                    'Guardar Apariencia'
+                  )}
+                </button>
               </div>
             </form>
           </div>
@@ -331,34 +506,41 @@ export default function SettingsPage() {
               </div>
 
               {/* Storefront Layout */}
-              <div className="flex-1 flex flex-col bg-zinc-950 p-3 text-white">
+              <div className="flex-1 flex flex-col bg-zinc-950 p-3 text-white justify-between">
                 {/* Store Header */}
                 <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
                   <div className="flex items-center gap-1.5">
                     {config.logo_url ? (
                       <img 
-                        src={config.logo_url} 
+                        src={resolveImageUrl(config.logo_url)} 
                         alt="Logo Preview" 
                         className="w-5 h-5 rounded-md object-cover shadow-sm bg-zinc-800" 
                       />
-                    ) : null}
-                    <span className="text-[11px] font-bold tracking-tight text-white">{config.name}</span>
+                    ) : (
+                      <div 
+                        className="w-4 h-4 rounded flex items-center justify-center text-[8px] font-bold text-white shadow-inner"
+                        style={{ backgroundColor: config.primary_color || '#6366f1' }}
+                      >
+                        {config.name.substring(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-[11px] font-bold tracking-tight text-white truncate max-w-[90px]">{config.name}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <span className="w-6 h-1 rounded" style={{ backgroundColor: config.primary_color || '#6366f1' }} />
-                    <span className="w-6 h-1 rounded" style={{ backgroundColor: config.secondary_color || '#10b981' }} />
+                  <div className="flex gap-1">
+                    <span className="w-4 h-1 rounded" style={{ backgroundColor: config.primary_color || '#6366f1' }} />
+                    <span className="w-4 h-1 rounded" style={{ backgroundColor: config.secondary_color || '#10b981' }} />
                   </div>
                 </div>
 
                 {/* Store Hero section */}
                 <div className="flex-1 flex flex-col justify-center items-center text-center p-2 space-y-2">
                   <div 
-                    className="px-2.5 py-1.5 rounded-lg text-[10px] font-bold text-white shadow-md shadow-black/20 transition-all duration-300 transform group-hover:-translate-y-0.5" 
+                    className="px-2.5 py-1 text-[9px] font-bold text-white shadow-md shadow-black/20 rounded-md transition-all duration-300" 
                     style={{ backgroundColor: config.primary_color || '#6366f1' }}
                   >
                     Colección de Verano
                   </div>
-                  <p className="text-[8px] text-zinc-400 max-w-[160px]">
+                  <p className="text-[8px] text-zinc-500 max-w-[160px]">
                     Descubre los productos seleccionados para ti.
                   </p>
                 </div>
