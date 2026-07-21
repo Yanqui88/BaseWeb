@@ -100,8 +100,27 @@ api.tudominio.com {
 
 # -----------------------------------------------------------------------------
 # BLOQUE 3 — Comodín multi-tenant con On-Demand TLS
-# Captura CUALQUIER dominio personalizado de un tenant (ej. tienda.cliente.com).
-# El certificado se emite solo si NestJS valida el dominio (bloque 'ask' global).
+#
+# Este bloque `:443` captura TODO el tráfico HTTPS que llegue al servidor,
+# independientemente del hostname (subdominios SaaS o dominios personalizados).
+#
+# Flujo para subdominios SaaS (ej. mitienda.tuplataforma.com):
+#   1. Caddy recibe la conexión TLS de "mitienda.tuplataforma.com".
+#   2. No tiene certificado en caché → activa On-Demand TLS.
+#   3. Llama a GET http://api:4000/api/tenants/verify-domain?domain=mitienda.tuplataforma.com
+#   4. NestJS extrae el slug "mitienda" (via ROOT_DOMAIN env var), busca en DB.
+#   5. Si existe (HTTP 200) → Caddy solicita cert a Let's Encrypt y enrúta.
+#   6. Si no existe (HTTP 404) → Caddy rechaza la conexión sin emitir cert.
+#
+# Flujo para dominios personalizados (marca blanca, ej. zapatos.com):
+#   • Mismo proceso, pero NestJS busca "zapatos.com" directamente en la BD.
+#   • El tenant debe tener domain='zapatos.com' en su registro.
+#
+# NOTA IMPORTANTE — DNS comodín:
+#   Para que "*.tuplataforma.com" funcione, el operador debe crear un registro
+#   DNS de tipo A wildcard apuntando al VPS:
+#     *.tuplataforma.com. 300 IN A <IP_DEL_VPS>
+#   Caddy no requiere config especial; el comodín `:443` lo maneja nativamente.
 # -----------------------------------------------------------------------------
 :443 {
 	tls {

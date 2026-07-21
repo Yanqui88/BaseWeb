@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import { headers } from "next/headers";
-import Link from "next/dist/client/link";
+import Link from "next/link";
 import { fetchTenantConfig } from "../layout";
 import CheckoutForm from "./CheckoutForm";
 

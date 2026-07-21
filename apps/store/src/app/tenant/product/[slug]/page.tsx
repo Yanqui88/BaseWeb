@@ -1,5 +1,4 @@
-import Link from "next/dist/client/link";
-//import Link from "next/link";
+import Link from "next/link";
 
 type Variant = {
   id: string;
@@ -39,8 +38,8 @@ export default async function ProductPage({
 }) {
   const { slug } = await params;
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
 
   const res = await fetch(`${apiUrl}/public/${tenant}/products/${slug}`, {
     cache: "force-cache",
@@ -49,7 +48,7 @@ export default async function ProductPage({
 
   if (!res.ok) {
     return (
-      <main className="mx-auto max-w-6xl p-6 flex flex-col items-center justify-center min-h-[400px] space-y-4">
+      <main className="mx-auto max-w-6xl p-6 flex flex-col items-center justify-center min-h-[400px] space-y-4 font-sans">
         <div className="text-4xl">🔍</div>
         <h1 className="text-xl font-bold text-zinc-800 dark:text-zinc-200">Producto no encontrado</h1>
         <Link href="/" className="px-4 py-2 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-black rounded-xl text-xs font-bold shadow-md hover:bg-zinc-800 transition-all">
@@ -118,7 +117,7 @@ export default async function ProductPage({
                 <h3 className="text-xs font-bold text-zinc-400 dark:text-zinc-550 uppercase tracking-wider mb-2">
                   Descripción
                 </h3>
-                <p className="whitespace-pre-line text-sm text-zinc-655 text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                <p className="whitespace-pre-line text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
                   {p.description}
                 </p>
               </div>

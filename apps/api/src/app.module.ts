@@ -50,6 +50,7 @@ import { TenantsModule } from "./tenants/tenants.module";
 import { CouponsModule } from "./coupons/coupons.module.js";
 import { AnalyticsModule } from "./analytics/analytics.module.js";
 import { BillingModule } from "./billing/billing.module.js";
+import { SaasModule } from "./saas/saas.module.js";
 
 @Module({
   imports: [
@@ -102,6 +103,8 @@ import { BillingModule } from "./billing/billing.module.js";
     AnalyticsModule,
     // ── Hito 10: Billing y Ciclo de Vida del Tenant ──────────────────────────
     BillingModule,
+    // ── Hito 11: Onboarding Self-Service ─────────────────────────────────────
+    SaasModule,
   ],
   controllers: [
     AppController,

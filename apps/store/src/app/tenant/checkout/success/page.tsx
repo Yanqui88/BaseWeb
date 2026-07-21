@@ -43,7 +43,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const shortOrderId = orderId ? orderId.slice(-8).toUpperCase() : "N/A";
   const isApproved = paymentStatus === "approved";
 
-  // Obtener config del tenant para el botón de WhatsApp
   const headersList = await headers();
   const host = headersList.get("host") ?? "localhost";
   const tenantDomain = host.split(":")[0];
@@ -51,7 +50,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
   const whatsappPhone = tenantConfig?.whatsapp_phone ?? null;
   const tenantName = tenantConfig?.name ?? "la tienda";
 
-  // Construir mensaje de WhatsApp pre-formateado
   const whatsappMessage = encodeURIComponent(
     `¡Hola ${tenantName}! 👋\n\nAcabo de realizar una compra.\n📦 Orden #${shortOrderId}\n\n¿Me pueden confirmar el estado del pedido? ¡Gracias!`
   );
@@ -61,17 +59,14 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#0a0a1a] via-[#0f0f2e] to-[#0a0a1a] flex items-center justify-center p-4">
-      {/* Orbes de fondo */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-emerald-500/5 blur-3xl animate-pulse" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-blue-500/5 blur-3xl animate-pulse delay-1000" />
       </div>
 
       <div className="relative z-10 w-full max-w-lg">
-        {/* Tarjeta Principal */}
         <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-8 backdrop-blur-xl shadow-[0_24px_80px_rgba(0,0,0,0.4)] text-center">
 
-          {/* Ícono de Estado */}
           <div className="mb-6 flex justify-center">
             {isApproved ? (
               <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
@@ -89,7 +84,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
             )}
           </div>
 
-          {/* Título */}
           <h1 className="text-3xl font-extrabold text-white mb-2">
             {isApproved ? "¡Gracias por tu compra!" : "Pago en proceso"}
           </h1>
@@ -99,7 +93,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
               : "Tu pago está siendo procesado. Te notificaremos cuando se confirme."}
           </p>
 
-          {/* Badge de Orden */}
           {orderId && (
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-5 py-2.5">
               <span className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Orden</span>
@@ -107,7 +100,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
             </div>
           )}
 
-          {/* Badges de estado */}
           <div className="mb-8 flex justify-center gap-3 flex-wrap">
             <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold border ${
               isApproved
@@ -123,12 +115,9 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
             </span>
           </div>
 
-          {/* Separador */}
           <div className="border-t border-white/[0.06] mb-6" />
 
-          {/* Acciones */}
           <div className="flex flex-col gap-3">
-            {/* Botón WhatsApp */}
             {whatsappUrl && (
               <a
                 href={whatsappUrl}
@@ -144,7 +133,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
               </a>
             )}
 
-            {/* Volver a la tienda */}
             <Link
               href="/"
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-6 py-3.5 text-sm font-semibold text-slate-300 transition-all duration-300 hover:bg-white/[0.06] hover:text-white hover:border-white/[0.15]"
@@ -156,7 +144,6 @@ export default async function SuccessPage({ searchParams }: SuccessPageProps) {
             </Link>
           </div>
 
-          {/* Nota de email */}
           <p className="mt-6 text-xs text-slate-500 leading-relaxed">
             Recibirás una confirmación en tu correo electrónico con los detalles del pedido y actualizaciones de envío.
           </p>

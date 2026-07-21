@@ -9,19 +9,13 @@ type CheckoutItem = {
   unit_price: number;
 };
 
-type CheckoutCustomer = {
-  email: string;
-};
-
 export default function CheckoutForm() {
-  // Hardcoded cart item for guest checkout demo
   const cartItem: CheckoutItem = {
     title: "Zapatillas de Running",
     quantity: 1,
     unit_price: 45000,
   };
 
-  // Form fields state
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [address, setAddress] = useState("");
@@ -29,15 +23,12 @@ export default function CheckoutForm() {
   const [postalCode, setPostalCode] = useState("");
   const [phone, setPhone] = useState("");
 
-  // Shipping selection state
   const [shippingCost, setShippingCost] = useState(0);
   const [shippingMethodName, setShippingMethodName] = useState<string | null>(null);
 
-  // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Coupon states
   const [couponInput, setCouponInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
     code: string;
@@ -104,8 +95,6 @@ export default function CheckoutForm() {
     setShippingMethodName(name);
   };
 
-
-
   const formatARS = (value: number) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
@@ -131,8 +120,6 @@ export default function CheckoutForm() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
     const tenantDomain = typeof window !== "undefined" ? window.location.hostname : "localhost";
 
-    // Obtener el location_id de la sesión (o usar un valor por defecto de demo)
-    // En producción, esto vendría del contexto de la sucursal seleccionada
     const locationId = sessionStorage.getItem("active_location_id") || "00000000-0000-0000-0000-000000000000";
 
     try {
@@ -144,7 +131,6 @@ export default function CheckoutForm() {
         : 0;
       const total = Math.max(0, subtotal - discountAmount + shippingCost);
 
-      // Mapear el método de envío al tipo del DTO
       const shippingMethodMap: Record<string, string> = {
         "Andreani Estándar": "andreani_standard",
         "Andreani Express": "andreani_express",
@@ -172,7 +158,7 @@ export default function CheckoutForm() {
         total,
         items: [
           {
-            productId: "00000000-0000-0000-0000-000000000001", // demo product id
+            productId: "00000000-0000-0000-0000-000000000001",
             quantity: cartItem.quantity,
             unitPrice: cartItem.unit_price,
           },
@@ -208,7 +194,6 @@ export default function CheckoutForm() {
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-12">
-      {/* Columna Izquierda: Formulario de Envío */}
       <div className="lg:col-span-7 space-y-6">
         <div className="rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -332,7 +317,6 @@ export default function CheckoutForm() {
         />
       </div>
 
-      {/* Columna Derecha: Resumen de la Orden */}
       <div className="lg:col-span-5 space-y-6">
         <div className="sticky top-6 rounded-3xl border border-white/[0.08] bg-white/[0.03] p-6 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.2)]">
           <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
@@ -342,7 +326,6 @@ export default function CheckoutForm() {
             Resumen del Pedido
           </h2>
 
-          {/* Product list */}
           <div className="space-y-4 mb-6">
             <div className="flex items-center gap-4 rounded-2xl bg-white/[0.02] p-3 border border-white/[0.04]">
               <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-slate-900 border border-white/[0.08] flex items-center justify-center relative group">
@@ -359,7 +342,6 @@ export default function CheckoutForm() {
             </div>
           </div>
 
-          {/* Campo de Código de Descuento */}
           <div className="border-t border-white/[0.08] pt-4 mb-6">
             <label htmlFor="couponCode" className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
               ¿Tienes un código de descuento?
@@ -394,7 +376,6 @@ export default function CheckoutForm() {
               )}
             </div>
 
-            {/* Mensajes de Validación */}
             {couponMessage && (
               <p className="mt-2 text-xs font-semibold text-emerald-400 flex items-center gap-1.5 animate-fade-in">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -409,7 +390,6 @@ export default function CheckoutForm() {
             )}
           </div>
 
-          {/* Subtotal, envio and total details */}
           <div className="border-t border-white/[0.08] pt-4 space-y-3 mb-6">
             <div className="flex justify-between text-sm text-slate-400">
               <span>Subtotal</span>
@@ -443,7 +423,6 @@ export default function CheckoutForm() {
             </div>
           </div>
 
-          {/* Pay Button */}
           <button
             type="submit"
             disabled={loading}

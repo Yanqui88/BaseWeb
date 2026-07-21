@@ -18,9 +18,7 @@ function resolveImageUrl(apiUrl: string, url?: string | null) {
   if (!url) return "";
   const trimmed = url.trim();
   if (!trimmed) return "";
-  // Si es un upload local guardado como ruta relativa:
   if (trimmed.startsWith("/uploads/")) return `${apiUrl}${trimmed}`;
-  // Si ya es URL absoluta (https://...):
   return trimmed;
 }
 
@@ -87,7 +85,7 @@ function formatARSFromCents(cents: number) {
 }
 
 export default async function Home() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
   const banner = await getBanner();
   const products = await getProducts();
 
@@ -101,7 +99,6 @@ export default async function Home() {
     <main className="mx-auto max-w-6xl p-4 md:p-6 space-y-8 font-sans">
       {/* Premium Header */}
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary/90 to-primary/80 p-6 md:p-10 text-white shadow-xl shadow-primary/10 transition-all duration-300">
-        {/* Glow decorative blobs */}
         <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-56 h-56 bg-black/10 rounded-full blur-2xl pointer-events-none" />
 
@@ -155,7 +152,6 @@ export default async function Home() {
       {/* Hero Banner Section */}
       {banner && (
         <section className="relative overflow-hidden rounded-3xl border border-zinc-200/60 dark:border-zinc-800/40 shadow-sm">
-          {/* Desktop */}
           {banner.href ? (
             <a
               href={banner.href}
@@ -169,7 +165,6 @@ export default async function Home() {
             </div>
           )}
 
-          {/* Mobile */}
           {banner.href ? (
             <a href={banner.href} className="block md:hidden group cursor-pointer">
               <BannerMobile banner={banner} apiUrl={apiUrl} />
@@ -197,7 +192,6 @@ export default async function Home() {
                 href={`/product/${p.slug}`}
                 className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white dark:bg-zinc-950 dark:border-zinc-800 p-3.5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-md cursor-pointer"
               >
-                {/* Image Container */}
                 <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900 relative">
                   {p.coverImage ? (
                     <img
@@ -217,7 +211,6 @@ export default async function Home() {
                   </div>
                 </div>
 
-                {/* Details Container */}
                 <div className="mt-4 flex flex-col justify-between flex-1">
                   <div>
                     <h3 className="text-sm font-bold text-zinc-800 dark:text-zinc-100 group-hover:text-primary transition-colors duration-200 line-clamp-2 min-h-[40px]">
@@ -239,7 +232,6 @@ export default async function Home() {
             ))}
           </div>
         ) : (
-          /* Elegant Empty State */
           <div className="flex flex-col items-center justify-center text-center p-12 md:p-20 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/20 backdrop-blur-sm max-w-2xl mx-auto space-y-6 shadow-inner">
             <div className="flex items-center justify-center w-20 h-20 rounded-3xl bg-zinc-100 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 shadow-md animate-pulse">
               <span className="text-4xl">🛍️</span>
