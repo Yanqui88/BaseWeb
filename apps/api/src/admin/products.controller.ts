@@ -21,24 +21,19 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
 } from '@nestjs/common';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { DbService } from '../db/db.service';
 import { tenantCatalogKey } from '../cache/cache-keys';
 import { CacheRevalidationService } from '../cache/cache-revalidation.service.js';
-
-type CreateProductDto = {
-  title: string;
-  slug: string;
-  description?: string | null;
-  status?: 'DRAFT' | 'ACTIVE' | 'ARCHIVED';
-  coverImage?: string | null;
-};
-
-type UpdateProductDto = Partial<CreateProductDto>;
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CreateProductDto, UpdateProductDto } from './dto/admin.dto';
 
 @Controller('admin')
+@UseGuards(JwtAuthGuard)
 export class AdminProductsController {
+
   constructor(
     private db: DbService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,

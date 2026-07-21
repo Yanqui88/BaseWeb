@@ -14,6 +14,7 @@
 
 @theme {
   --color-primary: var(--color-primary);
+  --color-secondary: var(--color-secondary);
 }
 
 @media (prefers-color-scheme: dark) {

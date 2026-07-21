@@ -19,7 +19,6 @@
  */
 
 import {
-  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -30,14 +29,7 @@ import {
 } from '@nestjs/common';
 import { JwtAdminGuard } from './mp-auth.guard.js';
 import { MpAuthService } from './mp-auth.service.js';
-
-/** DTO de entrada para el endpoint de vinculación. */
-interface LinkMpAccountDto {
-  /** Código de autorización recibido desde Mercado Pago (válido por 10 minutos). */
-  code: string;
-  /** URI de redirección que se usó al solicitar la autorización (debe coincidir). */
-  redirectUri: string;
-}
+import { LinkMpAccountDto } from './dto/link-mp-account.dto.js';
 
 /** Forma mínima de la Request con el tenantId inyectado por el Guard. */
 interface AuthenticatedRequest {
@@ -65,13 +57,6 @@ export class MpAuthController {
   ): Promise<{ success: boolean; mp_user_id: number }> {
     const { code, redirectUri } = body;
 
-    if (!code || typeof code !== 'string' || code.trim() === '') {
-      throw new BadRequestException('El campo "code" es requerido.');
-    }
-    if (!redirectUri || typeof redirectUri !== 'string' || redirectUri.trim() === '') {
-      throw new BadRequestException('El campo "redirectUri" es requerido.');
-    }
-
     const result = await this.mpAuthService.linkAccount(
       req.tenantId,
       code.trim(),
@@ -81,3 +66,4 @@ export class MpAuthController {
     return result;
   }
 }
+

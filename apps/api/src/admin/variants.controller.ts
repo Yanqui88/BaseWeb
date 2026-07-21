@@ -7,25 +7,16 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
 } from "@nestjs/common";
 import { DbService } from "../db/db.service";
-
-type CreateVariantDto = {
-  sku: string;
-  price: number;
-  title?: string | null;
-  compareAt?: number | null;
-};
-
-type UpdateVariantDto = {
-  sku?: string;
-  price?: number;
-  title?: string | null;
-  compareAt?: number | null;
-};
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CreateVariantDto, UpdateVariantDto } from "./dto/admin.dto";
 
 @Controller("admin")
+@UseGuards(JwtAuthGuard)
 export class AdminVariantsController {
+
   constructor(private db: DbService) {}
 
   @Get(":tenantSlug/products/:productId/variants")

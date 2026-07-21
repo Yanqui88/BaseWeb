@@ -22,8 +22,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
 
   const apiRes = await fetch(`${apiUrl}/admin/${tenant}/home/banner`, {
     method: "PUT",

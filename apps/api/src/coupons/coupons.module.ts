@@ -14,13 +14,20 @@
  */
 
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
 import { AdminCouponsController, PublicCouponsController } from './coupons.controller.js';
 import { CouponsService } from './coupons.service.js';
 import { PublicTenantInterceptor } from '../public/public-tenant.interceptor.js';
 
 @Module({
+  imports: [
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'super-secret',
+    }),
+  ],
   controllers: [AdminCouponsController, PublicCouponsController],
   providers: [CouponsService, PublicTenantInterceptor],
   exports: [CouponsService],
 })
 export class CouponsModule {}
+

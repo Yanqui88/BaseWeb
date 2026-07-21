@@ -6,13 +6,16 @@ import {
   NotFoundException,
   Param,
   Put,
+  UseGuards,
 } from "@nestjs/common";
 import { DbService } from "../db/db.service";
-
-type SetInventoryDto = { quantity: number };
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { SetInventoryDto } from "./dto/admin.dto";
 
 @Controller("admin")
+@UseGuards(JwtAuthGuard)
 export class AdminInventoryController {
+
   constructor(private db: DbService) {}
 
   @Get(":tenantSlug/variants/:variantId/inventory")

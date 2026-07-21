@@ -8,20 +8,16 @@ import {
   Param,
   Post,
   Put,
+  UseGuards,
 } from "@nestjs/common";
 import { DbService } from "../db/db.service";
-
-type CreateLocationDto = {
-  name: string;
-  city?: string | null;
-  address?: string | null;
-  isActive?: boolean;
-};
-
-type UpdateLocationDto = Partial<CreateLocationDto>;
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { CreateLocationDto, UpdateLocationDto } from "./dto/admin.dto";
 
 @Controller("admin")
+@UseGuards(JwtAuthGuard)
 export class AdminLocationsController {
+
   constructor(private db: DbService) {}
 
   @Get(":tenantSlug/locations")

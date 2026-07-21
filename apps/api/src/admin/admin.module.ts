@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { JwtModule } from "@nestjs/jwt";
 import { AdminController } from "./admin.controller";
 import { AdminProductsController } from "./products.controller";
 import { AdminVariantsController } from "./variants.controller";
@@ -8,6 +9,11 @@ import { ProductsCsvController } from "./products-csv.controller";
 import { ProductsCsvService } from "./products-csv.service";
 
 @Module({
+  imports: [
+    JwtModule.register({
+      secret: process.env.JWT_SECRET || 'super-secret',
+    }),
+  ],
   controllers: [
     AdminController,
     AdminProductsController,

@@ -71,3 +71,9 @@
 - [x] **Fase 3 (Flujo de Registro - Frontend):** Construcción del formulario de registro "Multistep" (Glassmorphism, Tailwind v4) en la Landing Page, con validación de disponibilidad del nombre de la tienda en tiempo real y redirección mágica al panel `apps/admin` tras un alta exitosa.
 - [x] **Fase 4 (Provisionamiento de Subdominios y DNS):** Asegurar que el registro de tenants genere automáticamente el acceso mediante subdominios (ej. `mitienda.tuplataforma.com`) gestionados por el enrutamiento Caddy existente.
 - [x] **Fase 5 (Activación Comercial y Facturación):** Conectar el flujo de pago del plan SaaS (Suscripción) para los tenants cuando su periodo de prueba finalice.
+
+## Hito 12: Auditoría Máxima de Seguridad y Revisión Global (Pre-Despliegue Final)
+- [x] **Fase 1 (Auditoría Cero Confianza - RLS & SQL):** Revisión exhaustiva con Claude Opus 4.6 (Thinking) de todas las políticas de Row-Level Security (RLS) en Postgres. Búsqueda de vulnerabilidades cruzadas entre tenants, SQL Injection y validación estricta de variables de contexto.
+- [x] **Fase 2 (Análisis Estático y Sanitización de API):** Auditoría de código en `apps/api` y `packages/shared` con Claude Sonnet 4.6 (Thinking). Verificación de validaciones en DTOs, manejo global de excepciones, saneamiento de payloads en Webhooks, y seguridad en autenticación (JWT/OAuth).
+- [x] **Fase 3 (Garantía de Calidad Frontend y UI/UX):** QA meticuloso en `apps/store` y `apps/admin` con Gemini 3.5 Flash (High). Detección y corrección de bugs visuales, estados de error no controlados, y validación estricta de los formularios de Onboarding, Checkout e Importación CSV.
+- [x] **Fase 4 (Pruebas de Estrés y Despliegue Simulado):** Ensayo final en entorno Dockerizado (Simulación VPS 2GB). Verificación del Rate Limiting, límites de memoria (OOM prevenciones), e integración de Caddy SSL dinámico sin brechas.

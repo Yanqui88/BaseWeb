@@ -22,22 +22,23 @@ function resolveImageUrl(apiUrl: string, url?: string | null) {
   return trimmed;
 }
 
-async function getBanner(): Promise<HomeBanner> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
+async function getBanner(host: string): Promise<HomeBanner> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
 
-  const res = await fetch(`${apiUrl}/public/${tenant}/home/banner`, {
-    cache: "force-cache",
-    next: { tags: [`tenant:${tenant}:banner`] },
-  });
-
-  if (!res.ok) return null;
-  const text = await res.text();
-  if (!text.trim()) return null;
   try {
+    const res = await fetch(`${apiUrl}/public/${tenant}/home/banner`, {
+      headers: { "x-tenant-domain": host },
+      cache: "force-cache",
+      next: { tags: [`tenant:${tenant}:banner`] },
+    });
+
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (!text.trim()) return null;
     return JSON.parse(text);
   } catch (e) {
-    console.error("Error parsing banner JSON:", e);
+    console.error("Error fetching banner:", e);
     return null;
   }
 }
@@ -50,27 +51,28 @@ type Product = {
   minPrice: number | null;
 };
 
-async function getProducts(): Promise<Product[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
+async function getProducts(host: string): Promise<Product[]> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
 
-  const res = await fetch(
-    `${apiUrl}/public/${tenant}/products`,
-    {
-      cache: "force-cache",
-      next: { tags: [`tenant:${tenant}:products`] },
-    }
-  );
-
-  if (!res.ok) return [];
-
-  const text = await res.text();
-  if (!text.trim()) return [];
   try {
+    const res = await fetch(
+      `${apiUrl}/public/${tenant}/products`,
+      {
+        headers: { "x-tenant-domain": host },
+        cache: "force-cache",
+        next: { tags: [`tenant:${tenant}:products`] },
+      }
+    );
+
+    if (!res.ok) return [];
+
+    const text = await res.text();
+    if (!text.trim()) return [];
     const data = JSON.parse(text);
     return data.items ?? [];
   } catch (e) {
-    console.error("Error parsing products JSON:", e);
+    console.error("Error fetching products:", e);
     return [];
   }
 }
@@ -86,11 +88,12 @@ function formatARSFromCents(cents: number) {
 
 export default async function Home() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
-  const banner = await getBanner();
-  const products = await getProducts();
 
   const headersList = await headers();
   const host = headersList.get("host") || "localhost:3000";
+
+  const banner = await getBanner(host);
+  const products = await getProducts(host);
   const tenantConfig = await fetchTenantConfig(host);
 
   const logoSrc = tenantConfig.logo_url ? resolveImageUrl(apiUrl, tenantConfig.logo_url) : null;

@@ -28,30 +28,8 @@ import { Throttle } from '@nestjs/throttler';
 import { CheckoutService } from './checkout.service.js';
 import { PublicTenantInterceptor } from '../public/public-tenant.interceptor.js';
 import { randomUUID } from 'crypto';
+import { CreatePreferenceDto } from './dto/create-preference.dto.js';
 
-/** Estructura de un ítem de compra enviado por el frontend. */
-export interface CheckoutItem {
-  /** Nombre o título del producto. */
-  title: string;
-  /** Cantidad de unidades. */
-  quantity: number;
-  /** Precio unitario del producto. */
-  unit_price: number;
-}
-
-/** Datos del comprador enviados por el frontend. */
-export interface CheckoutCustomer {
-  /** Email del comprador, requerido por Mercado Pago para la preferencia. */
-  email: string;
-}
-
-/** Cuerpo esperado en `POST /checkout/preference`. */
-export interface CreatePreferenceDto {
-  /** Lista de productos a incluir en la preferencia de pago. */
-  items: CheckoutItem[];
-  /** Datos del cliente comprador. */
-  customer: CheckoutCustomer;
-}
 
 @UseInterceptors(PublicTenantInterceptor)
 @Controller('checkout')

@@ -117,7 +117,7 @@ export default async function TenantLayout({
     <div className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
       <style
         dangerouslySetInnerHTML={{
-          __html: `:root { --color-primary: ${config.primary_color}; }`,
+          __html: `:root { --color-primary: ${config.primary_color || '#3b82f6'}; --color-secondary: ${config.secondary_color || '#10b981'}; }`,
         }}
       />
       {children}

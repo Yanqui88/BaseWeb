@@ -172,7 +172,7 @@ export default async function ProductPage({
           {/* Action Buy Button */}
           <div className="border-t border-zinc-100 dark:border-zinc-900 pt-6">
             <Link
-              href="/checkout"
+              href="/tenant/checkout"
               className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-primary hover:bg-primary/95 px-6 py-4 text-sm font-bold text-white shadow-lg shadow-primary/20 hover:shadow-primary/30 hover:scale-[1.01] transition-all duration-300 active:scale-99 cursor-pointer group"
             >
               <span>Comprar Ahora</span>

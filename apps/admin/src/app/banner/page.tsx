@@ -29,8 +29,8 @@ function resolveImageUrl(apiUrl: string, url?: string | null) {
 }
 
 export default function BannerPage() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL!;
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG!;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

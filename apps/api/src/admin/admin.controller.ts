@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { CACHE_MANAGER, Cache } from "@nestjs/cache-manager";
@@ -18,28 +19,13 @@ import { extname, join } from "path";
 import { readdir } from "fs/promises";
 import { tenantConfigKey } from "../cache/cache-keys";
 import { CacheRevalidationService } from "../cache/cache-revalidation.service.js";
-
-type UpsertBannerDto = {
-  desktopImageUrl: string;
-  mobileImageUrl: string;
-  href?: string | null;
-  alt?: string | null;
-  badge?: string | null;
-  title?: string | null;
-  subtitle?: string | null;
-  buttonText?: string | null;
-  isActive?: boolean;
-};
-
-type UpdateTenantSeoDto = {
-  seoTitle: string | null;
-  seoDescription: string | null;
-  seoKeywords: string | null;
-  seoOgImage: string | null;
-};
+import { JwtAuthGuard } from "../auth/jwt-auth.guard";
+import { UpsertBannerDto, UpdateTenantSeoDto } from "./dto/admin.dto";
 
 @Controller("admin")
+@UseGuards(JwtAuthGuard)
 export class AdminController {
+
   constructor(
     private db: DbService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,

@@ -26,15 +26,19 @@ import {
   Post,
   Res,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ProductsCsvService } from './products-csv.service.js';
 import { DbService } from '../db/db.service.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 
 @Controller('admin')
+@UseGuards(JwtAuthGuard)
 export class ProductsCsvController {
+
   constructor(
     private readonly csvService: ProductsCsvService,
     private readonly db: DbService,

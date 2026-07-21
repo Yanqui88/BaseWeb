@@ -7,7 +7,6 @@
  */
 
 import {
-  BadRequestException,
   Body,
   Controller,
   HttpCode,
@@ -15,12 +14,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { AuthService, LoginResponse } from './auth.service.js';
-
-/** DTO de entrada para el endpoint de login. */
-interface LoginDto {
-  email: string;
-  password: string;
-}
+import { LoginDto } from './dto/login.dto.js';
 
 @Controller('auth')
 export class AuthController {
@@ -37,15 +31,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async login(@Body() body: LoginDto): Promise<LoginResponse> {
     const { email, password } = body;
-
-    // Validación manual explícita de campos requeridos.
-    if (!email || typeof email !== 'string' || email.trim() === '') {
-      throw new BadRequestException('El campo "email" es requerido.');
-    }
-    if (!password || typeof password !== 'string' || password.trim() === '') {
-      throw new BadRequestException('El campo "password" es requerido.');
-    }
-
     return this.authService.login(email.trim(), password);
   }
 }
+

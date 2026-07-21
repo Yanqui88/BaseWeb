@@ -34,19 +34,23 @@ import {
   Post,
   Put,
   Query,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { CouponsService } from './coupons.service.js';
 import { CreateCouponDto } from './dto/create-coupon.dto.js';
 import { UpdateCouponDto } from './dto/update-coupon.dto.js';
 import { PublicTenantInterceptor } from '../public/public-tenant.interceptor.js';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard.js';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // CONTROLADOR ADMIN
 // ──────────────────────────────────────────────────────────────────────────────
 
 @Controller('admin/:tenantSlug/coupons')
+@UseGuards(JwtAuthGuard)
 export class AdminCouponsController {
+
   private readonly logger = new Logger(AdminCouponsController.name);
 
   constructor(private readonly couponsService: CouponsService) {}

@@ -27,9 +27,9 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { DbService } from '../db/db.service.js';
 import { decrypt } from '../utils/crypto.util.js';
-import type { CheckoutCustomer, CheckoutItem } from './checkout.controller.js';
+import type { CheckoutCustomer, CheckoutItem } from './dto/create-preference.dto.js';
 
-/** Fila retornada por la consulta de credenciales de MP. */
+
 interface TenantMpCredentialRow {
   access_token_encrypted: string;
 }
