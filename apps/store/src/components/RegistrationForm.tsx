@@ -158,7 +158,7 @@ export default function RegistrationForm({ className = "" }: RegistrationFormPro
           setStep(3);
           // Redirect to Admin panel after 2.5 seconds
           setTimeout(() => {
-            const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3002/login";
+            const adminUrl = process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001/login";
             window.location.href = adminUrl;
           }, 2500);
         } else {
@@ -386,7 +386,7 @@ export default function RegistrationForm({ className = "" }: RegistrationFormPro
                 Redirigiendo a tu Panel de Control...
               </div>
               <a
-                href={process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3002/login"}
+                href={process.env.NEXT_PUBLIC_ADMIN_URL || "http://localhost:3001/login"}
                 className="text-xs text-indigo-400 underline hover:text-indigo-300 mt-2"
               >
                 ¿No fuiste redirigido? Haz clic aquí.

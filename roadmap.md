@@ -77,3 +77,11 @@
 - [x] **Fase 2 (Análisis Estático y Sanitización de API):** Auditoría de código en `apps/api` y `packages/shared` con Claude Sonnet 4.6 (Thinking). Verificación de validaciones en DTOs, manejo global de excepciones, saneamiento de payloads en Webhooks, y seguridad en autenticación (JWT/OAuth).
 - [x] **Fase 3 (Garantía de Calidad Frontend y UI/UX):** QA meticuloso en `apps/store` y `apps/admin` con Gemini 3.5 Flash (High). Detección y corrección de bugs visuales, estados de error no controlados, y validación estricta de los formularios de Onboarding, Checkout e Importación CSV.
 - [x] **Fase 4 (Pruebas de Estrés y Despliegue Simulado):** Ensayo final en entorno Dockerizado (Simulación VPS 2GB). Verificación del Rate Limiting, límites de memoria (OOM prevenciones), e integración de Caddy SSL dinámico sin brechas.
+
+## Hito 13: Despliegue a Producción Definitivo (Go-Live en VPS)
+- [ ] **Fase 1 (Preparación del VPS):** Actualización del sistema, configuración de Firewall (UFW) limitando puertos a SSH, HTTP(S), e instalación de Docker.
+- [ ] **Fase 2 (Variables y Secretos):** Generación segura de `.env.production` (Passwords fuertes DB, JWT Secrets, claves externas) aislando el entorno de pruebas.
+- [ ] **Fase 3 (Levantamiento de Infraestructura):** Ejecución de `docker compose -f docker-compose.yml up -d --build`. Monitoreo de arranque y límites de memoria de los contenedores.
+- [ ] **Fase 4 (Migraciones de Base de Datos):** Ejecución de las migraciones SQL productivas a través del contenedor de la API (`pnpm run migrate:up`).
+- [ ] **Fase 5 (Enrutamiento DNS y SSL):** Configuración de los registros A/CNAME (incluyendo wildcard `*`) en el proveedor DNS apuntando al VPS. Validación del Caddy SSL On-Demand.
+- [ ] **Fase 6 (Smoke Testing en Producción):** Pruebas reales (registro de tenant de prueba, creación de producto y checkout), verificación de webhooks MP y test del script de Backup a S3.

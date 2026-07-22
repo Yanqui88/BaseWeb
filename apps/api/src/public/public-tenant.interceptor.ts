@@ -63,12 +63,23 @@ export class PublicTenantInterceptor implements NestInterceptor {
    */
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest<{ headers: Record<string, string> }>();
-    const domain: string | undefined = request.headers['x-tenant-domain'];
+    let rawDomain: string | undefined = request.headers['x-tenant-domain'];
 
-    if (!domain || domain.trim() === '') {
+    if (!rawDomain || rawDomain.trim() === '') {
       throw new NotFoundException(
         'El header "x-tenant-domain" es obligatorio para las rutas públicas.',
       );
+    }
+
+    // Limpiar el dominio: quitar puerto y sufijos base
+    let domain = rawDomain.split(':')[0];
+    const rootDomain = process.env.ROOT_DOMAIN || 'localhost';
+    
+    // Si estamos en localhost, quitar .localhost
+    if (domain.endsWith('.localhost')) {
+      domain = domain.replace('.localhost', '');
+    } else if (rootDomain && domain.endsWith('.' + rootDomain)) {
+      domain = domain.replace('.' + rootDomain, '');
     }
 
     // ──────────────────────────────────────────────────────────────────────
