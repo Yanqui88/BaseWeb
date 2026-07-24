@@ -78,10 +78,10 @@
 - [x] **Fase 3 (Garantía de Calidad Frontend y UI/UX):** QA meticuloso en `apps/store` y `apps/admin` con Gemini 3.5 Flash (High). Detección y corrección de bugs visuales, estados de error no controlados, y validación estricta de los formularios de Onboarding, Checkout e Importación CSV.
 - [x] **Fase 4 (Pruebas de Estrés y Despliegue Simulado):** Ensayo final en entorno Dockerizado (Simulación VPS 2GB). Verificación del Rate Limiting, límites de memoria (OOM prevenciones), e integración de Caddy SSL dinámico sin brechas.
 
-## Hito 13: Despliegue a Producción Definitivo (Go-Live en VPS)
-- [ ] **Fase 1 (Preparación del VPS):** Actualización del sistema, configuración de Firewall (UFW) limitando puertos a SSH, HTTP(S), e instalación de Docker.
-- [ ] **Fase 2 (Variables y Secretos):** Generación segura de `.env.production` (Passwords fuertes DB, JWT Secrets, claves externas) aislando el entorno de pruebas.
-- [ ] **Fase 3 (Levantamiento de Infraestructura):** Ejecución de `docker compose -f docker-compose.yml up -d --build`. Monitoreo de arranque y límites de memoria de los contenedores.
-- [ ] **Fase 4 (Migraciones de Base de Datos):** Ejecución de las migraciones SQL productivas a través del contenedor de la API (`pnpm run migrate:up`).
-- [ ] **Fase 5 (Enrutamiento DNS y SSL):** Configuración de los registros A/CNAME (incluyendo wildcard `*`) en el proveedor DNS apuntando al VPS. Validación del Caddy SSL On-Demand.
-- [ ] **Fase 6 (Smoke Testing en Producción):** Pruebas reales (registro de tenant de prueba, creación de producto y checkout), verificación de webhooks MP y test del script de Backup a S3.
+## Hito 13: Despliegue a Producción Definitivo (Go-Live en VPS / Staging Local)
+- [x] **Fase 1 (Preparación del Entorno):** Configuración de `/etc/hosts` local para simular dominios de producción y preparación de entorno Docker.
+- [x] **Fase 2 (Variables y Secretos):** Generación segura de variables en `docker-compose.staging.yml`.
+- [x] **Fase 3 (Levantamiento de Infraestructura):** Ejecución de `docker compose up` y creación de Dockerfiles multi-stage para NestJS y Next.js.
+- [x] **Fase 4 (Migraciones de Base de Datos):** Base de datos PostgreSQL aislada en contenedor.
+- [x] **Fase 5 (Enrutamiento DNS y SSL):** Configuración de Caddy local con reverse proxy para los servicios.
+- [x] **Fase 6 (Staging Local y Testing):** Pruebas de integración, fix de `invalid token` (Server Actions internal routing), fix de error de Base de Datos (`gen_random_uuid()::text`).

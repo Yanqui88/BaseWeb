@@ -1,7 +1,14 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { importProductsCsvAction } from './actions';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import {
+  importProductsCsvAction,
+  getProductsAction,
+  createProductAction,
+  updateProductAction,
+  deleteProductAction,
+  getTenantSlugAction,
+} from './actions';
 
 interface Product {
   id: string;
@@ -14,48 +21,7 @@ interface Product {
 }
 
 // ── Constantes de configuración ────────────────────────────────────────────
-/** Tenant slug (en producción debería leerse del contexto/cookie). */
-const TENANT_SLUG = 'demo';
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://127.0.0.1:4000';
-
-const INITIAL_PRODUCTS: Product[] = [
-  {
-    id: 'prod-1',
-    name: 'iPhone 15 Pro Max',
-    sku: 'IPH15-PM-256',
-    price: 1399.00,
-    stock: 24,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=80&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-  },
-  {
-    id: 'prod-2',
-    name: 'MacBook Pro 14" M3',
-    sku: 'MBP-M3-16GB',
-    price: 1999.00,
-    stock: 8,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=80&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-  },
-  {
-    id: 'prod-3',
-    name: 'AirPods Pro 2',
-    sku: 'APP2-W-CASE',
-    price: 249.00,
-    stock: 0,
-    status: 'draft',
-    image: 'https://images.unsplash.com/photo-1588449668365-d15e397f6787?w=80&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-  },
-  {
-    id: 'prod-4',
-    name: 'Apple Watch Ultra 2',
-    sku: 'AWU2-49MM',
-    price: 799.00,
-    stock: 3,
-    status: 'active',
-    image: 'https://images.unsplash.com/photo-1434494878577-86c23bcb06b9?w=80&auto=format&fit=crop&q=60&ixlib=rb-4.0.3',
-  },
-];
 
 // ── Tipos del resultado de importación ─────────────────────────────────────
 interface ImportResult {
@@ -75,7 +41,7 @@ type ImportModalState = 'idle' | 'dragging' | 'loading' | 'success' | 'error';
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────────────────────────────
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -104,10 +70,44 @@ export default function ProductsPage() {
     });
   }, [products, searchQuery, statusFilter]);
 
+  // Fetch initial products
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const res = await getProductsAction();
+        if (res.success) {
+          const mapped = res.items.map((item: any) => ({
+            id: item.id,
+            name: item.title || item.name || 'Sin título',
+            sku: item.sku || `SKU-${item.id.slice(0, 5)}`,
+            price: Number(item.price) || 0,
+            stock: Number(item.stock) || 0,
+            status: (item.status || 'DRAFT').toLowerCase(),
+            image: item.coverImage || item.image || '',
+          }));
+          setProducts(mapped);
+        }
+      } catch (err) {
+        console.error('Error fetching products:', err);
+      }
+    }
+    fetchProducts();
+  }, []);
+
   // ── Handlers CRUD ─────────────────────────────────────────────────────────
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
-      setProducts((prev) => prev.filter((p) => p.id !== id));
+      try {
+        const res = await deleteProductAction(id);
+        if (res.success) {
+          setProducts((prev) => prev.filter((p) => p.id !== id));
+        } else {
+          alert(res.error || 'Error al eliminar producto');
+        }
+      } catch (err) {
+        console.error('Error deleting product:', err);
+        alert('Error al eliminar producto');
+      }
     }
   };
 
@@ -121,30 +121,74 @@ export default function ProductsPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentProduct) return;
 
-    if (currentProduct.id) {
-      setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? (currentProduct as Product) : p)));
-    } else {
-      const newProduct: Product = { ...(currentProduct as Omit<Product, 'id'>), id: `prod-${Date.now()}` };
-      setProducts((prev) => [...prev, newProduct]);
+    const payload = {
+      title: currentProduct.name || '',
+      slug: (currentProduct.name ? currentProduct.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-') : `product-${Date.now()}`),
+      description: currentProduct.name || '',
+      status: (currentProduct.status || 'draft').toUpperCase(),
+      coverImage: currentProduct.image || '',
+      price: Number(currentProduct.price) || 0,
+      sku: currentProduct.sku || '',
+      stock: Number(currentProduct.stock) || 0,
+    };
+
+    try {
+      if (currentProduct.id) {
+        const res = await updateProductAction(currentProduct.id, payload);
+        if (res.success && res.data) {
+          const updated: Product = {
+            id: res.data.id || currentProduct.id,
+            name: res.data.title || currentProduct.name || '',
+            sku: currentProduct.sku || 'SKU-001',
+            price: Number(currentProduct.price) || 0,
+            stock: Number(currentProduct.stock) || 0,
+            status: (res.data.status || 'DRAFT').toLowerCase() as Product['status'],
+            image: res.data.coverImage || currentProduct.image || '',
+          };
+          setProducts((prev) => prev.map((p) => (p.id === currentProduct.id ? updated : p)));
+          setIsModalOpen(false);
+          setCurrentProduct(null);
+        } else {
+          alert(res.error || 'Error al actualizar el producto');
+        }
+      } else {
+        const res = await createProductAction(payload);
+        if (res.success && res.data) {
+          const created: Product = {
+            id: res.data.id,
+            name: res.data.title || currentProduct.name || '',
+            sku: currentProduct.sku || 'SKU-001',
+            price: Number(currentProduct.price) || 0,
+            stock: Number(currentProduct.stock) || 0,
+            status: (res.data.status || 'DRAFT').toLowerCase() as Product['status'],
+            image: res.data.coverImage || currentProduct.image || '',
+          };
+          setProducts((prev) => [created, ...prev]);
+          setIsModalOpen(false);
+          setCurrentProduct(null);
+        } else {
+          alert(res.error || 'Error al crear el producto');
+        }
+      }
+    } catch (err) {
+      console.error('Error saving product:', err);
+      alert('Error al guardar el producto');
     }
-    setIsModalOpen(false);
-    setCurrentProduct(null);
   };
 
   // ── EXPORTAR CSV ──────────────────────────────────────────────────────────
   const handleExportCsv = useCallback(async () => {
     setIsExporting(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/${TENANT_SLUG}/products/export`, {
+      const slug = await getTenantSlugAction();
+      const res = await fetch(`${API_BASE}/admin/${slug}/products/export`, {
         method: 'GET',
         headers: { 'x-tenant-domain': window.location.hostname },
       });
-
-      if (!res.ok) throw new Error('Error al exportar');
 
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -219,7 +263,7 @@ export default function ProductsPage() {
     const formData = new FormData();
     formData.append('file', selectedFile);
 
-    const result = await importProductsCsvAction(formData, TENANT_SLUG);
+    const result = await importProductsCsvAction(formData);
     setImportResult(result);
     setImportState(result.success ? 'success' : 'error');
   };
@@ -378,11 +422,17 @@ export default function ProductsPage() {
                     <tr key={p.id} className="hover:bg-zinc-850/30 transition-colors duration-150">
                       <td className="px-6 py-4 flex items-center gap-3">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-zinc-800 border border-zinc-850" />
+                        {p.image ? (
+                          <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover bg-zinc-800 border border-zinc-850 shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg bg-zinc-800 border border-zinc-850 shrink-0 flex items-center justify-center text-zinc-500 font-bold uppercase">
+                            {p.name.charAt(0)}
+                          </div>
+                        )}
                         <div className="font-medium text-white truncate max-w-[200px]" title={p.name}>{p.name}</div>
                       </td>
                       <td className="px-6 py-4 text-xs font-mono text-zinc-400">{p.sku}</td>
-                      <td className="px-6 py-4 text-right font-semibold text-white">${p.price.toFixed(2)}</td>
+                      <td className="px-6 py-4 text-right font-semibold text-white">${(Number(p.price) || 0).toFixed(2)}</td>
                       <td className="px-6 py-4 text-center">{stockBadge}</td>
                       <td className="px-6 py-4">{statusBadge}</td>
                       <td className="px-6 py-4 text-right whitespace-nowrap">

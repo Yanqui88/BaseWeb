@@ -40,7 +40,7 @@ const getHeaders = async () => {
 };
 
 export async function getKpisAction(): Promise<{ success: boolean; data?: KpisData }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getHeaders();
 
   try {
@@ -63,7 +63,7 @@ export async function getKpisAction(): Promise<{ success: boolean; data?: KpisDa
 }
 
 export async function getSalesChartAction(): Promise<{ success: boolean; data?: SalesChartItem[] }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getHeaders();
 
   try {
@@ -86,7 +86,7 @@ export async function getSalesChartAction(): Promise<{ success: boolean; data?: 
 }
 
 export async function getTopProductsAction(): Promise<{ success: boolean; data?: TopProductItem[] }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getHeaders();
 
   try {

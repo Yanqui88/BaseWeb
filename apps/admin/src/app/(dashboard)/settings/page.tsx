@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   getTenantConfigAction,
   updateTenantSeoAction,
+  updateTenantVisualAction,
   TenantConfigData
 } from './settings.actions';
 
@@ -178,20 +179,21 @@ export default function SettingsPage() {
     setIsSaving(true);
     setError(null);
     
-    // Simulate API call for Visual settings (since backend SQL shouldn't be altered in this phase)
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    
-    // We save settings in localStorage so that we persist visual modifications locally in the client
-    localStorage.setItem('tenant_visual_config', JSON.stringify({
-      primary_color: config.primary_color,
-      secondary_color: config.secondary_color,
-      logo_url: config.logo_url,
-      name: config.name,
-    }));
+    const res = await updateTenantVisualAction({
+      name: config.name || null,
+      primary_color: config.primary_color || null,
+      secondary_color: config.secondary_color || null,
+      logo_url: config.logo_url || null,
+      whatsapp_phone: config.whatsapp_phone || null,
+    });
 
     setIsSaving(false);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
+    if (res.success) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } else {
+      setError('Error al actualizar la configuración visual.');
+    }
   };
 
   function resolveImageUrl(url?: string | null) {

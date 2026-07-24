@@ -67,6 +67,28 @@ export class UpdateTenantSeoDto {
   seoOgImage?: string | null;
 }
 
+export class UpdateTenantVisualDto {
+  @IsString()
+  @IsOptional()
+  name?: string | null;
+
+  @IsString()
+  @IsOptional()
+  primary_color?: string | null;
+
+  @IsString()
+  @IsOptional()
+  secondary_color?: string | null;
+
+  @IsString()
+  @IsOptional()
+  logo_url?: string | null;
+
+  @IsString()
+  @IsOptional()
+  whatsapp_phone?: string | null;
+}
+
 export enum ProductStatusEnum {
   DRAFT = 'DRAFT',
   ACTIVE = 'ACTIVE',

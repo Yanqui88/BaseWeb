@@ -80,8 +80,8 @@ export enum ShippingMethodEnum {
 export class CreateOrderDto {
   /** UUID de la sucursal/depósito que procesa y despacha esta orden. */
   @IsUUID('4', { message: 'locationId debe ser un UUID v4 válido.' })
-  @IsNotEmpty()
-  locationId!: string;
+  @IsOptional()
+  locationId?: string;
 
   // ── Datos del comprador ────────────────────────────────────────────────────
   @IsEmail({}, { message: 'customerEmail debe ser un email válido.' })

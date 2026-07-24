@@ -63,7 +63,7 @@ export async function getBillingStatusAction(): Promise<{
   data?: BillingStatus;
   error?: string;
 }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getAuthHeaders();
 
   try {
@@ -98,7 +98,7 @@ export async function getBillingStatusAction(): Promise<{
  * La redirección ocurre en el servidor (redirect() de next/navigation).
  */
 export async function createPreferenceAndRedirectAction(): Promise<never> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getAuthHeaders();
 
   let initPoint: string;

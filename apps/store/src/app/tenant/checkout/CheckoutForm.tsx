@@ -1,20 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ShippingCalculator from "@/components/ShippingCalculator";
 
 type CheckoutItem = {
+  id: string;
+  product_id?: string;
+  variant_id?: string | null;
   title: string;
   quantity: number;
   unit_price: number;
 };
 
 export default function CheckoutForm() {
-  const cartItem: CheckoutItem = {
-    title: "Zapatillas de Running",
-    quantity: 1,
-    unit_price: 45000,
-  };
+  const [cartItems, setCartItems] = useState<CheckoutItem[]>([
+    {
+      id: "11111111-1111-4111-8111-111111111111",
+      product_id: "11111111-1111-4111-8111-111111111111",
+      title: "Zapatillas de Running",
+      quantity: 1,
+      unit_price: 45000,
+    },
+  ]);
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cart_items");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCartItems(
+            parsed.map((item: Record<string, unknown>) => ({
+              id: (typeof item.id === "string" ? item.id : null) || "00000000-0000-0000-0000-000000000000",
+              product_id: typeof item.product_id === "string" ? item.product_id : undefined,
+              variant_id: typeof item.variant_id === "string" ? item.variant_id : null,
+              title: typeof item.title === "string" ? item.title : "Producto sin nombre",
+              quantity: typeof item.quantity === "number" ? item.quantity : 1,
+              unit_price: typeof item.unit_price === "number" ? item.unit_price : 0,
+            }))
+          );
+        }
+      }
+    } catch (e) {
+      console.error("Error cargando carrito desde localStorage:", e);
+    }
+  }, []);
 
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
@@ -38,7 +68,7 @@ export default function CheckoutForm() {
   const [couponError, setCouponError] = useState<string | null>(null);
   const [couponMessage, setCouponMessage] = useState<string | null>(null);
 
-  const subtotal = cartItem.unit_price * cartItem.quantity;
+  const subtotal = cartItems.reduce((acc, item) => acc + item.unit_price * item.quantity, 0);
   const discountAmount = appliedCoupon
     ? appliedCoupon.discount_type === "percentage"
       ? (subtotal * appliedCoupon.discount_value) / 100
@@ -75,8 +105,9 @@ export default function CheckoutForm() {
       const data = json.data;
       setAppliedCoupon(data);
       setCouponMessage(`¡Cupón ${data.code} aplicado con éxito!`);
-    } catch (err: any) {
-      setCouponError(err.message || "Error al validar el cupón.");
+    } catch (err: unknown) {
+      const error = err as Error;
+      setCouponError(error.message || "Error al validar el cupón.");
       setAppliedCoupon(null);
     } finally {
       setLoading(false);
@@ -123,7 +154,7 @@ export default function CheckoutForm() {
     const locationId = sessionStorage.getItem("active_location_id") || "00000000-0000-0000-0000-000000000000";
 
     try {
-      const subtotal = cartItem.unit_price * cartItem.quantity;
+      const subtotal = cartItems.reduce((acc, item) => acc + item.unit_price * item.quantity, 0);
       const discountAmount = appliedCoupon
         ? appliedCoupon.discount_type === "percentage"
           ? (subtotal * appliedCoupon.discount_value) / 100
@@ -139,8 +170,7 @@ export default function CheckoutForm() {
       };
       const shippingMethodValue = shippingMethodMap[shippingMethodName ?? ""] ?? "andreani_standard";
 
-      const orderPayload = {
-        locationId,
+      const orderPayload: Record<string, unknown> = {
         customerEmail: email,
         customerName: fullName,
         customerPhone: phone,
@@ -156,14 +186,17 @@ export default function CheckoutForm() {
         subtotal,
         shippingCost,
         total,
-        items: [
-          {
-            productId: "00000000-0000-0000-0000-000000000001",
-            quantity: cartItem.quantity,
-            unitPrice: cartItem.unit_price,
-          },
-        ],
+        items: cartItems.map((item) => ({
+          productId: item.product_id || item.id,
+          variantId: item.variant_id || null,
+          quantity: item.quantity,
+          unitPrice: item.unit_price,
+        })),
       };
+
+      if (locationId && locationId !== "00000000-0000-0000-0000-000000000000") {
+        orderPayload.locationId = locationId;
+      }
 
       const response = await fetch(`${apiUrl}/orders`, {
         method: "POST",
@@ -311,7 +344,7 @@ export default function CheckoutForm() {
         </div>
 
         <ShippingCalculator
-          items={[cartItem]}
+          items={cartItems}
           onShippingSelected={handleShippingSelected}
           onZipCalculated={setPostalCode}
         />
@@ -327,19 +360,21 @@ export default function CheckoutForm() {
           </h2>
 
           <div className="space-y-4 mb-6">
-            <div className="flex items-center gap-4 rounded-2xl bg-white/[0.02] p-3 border border-white/[0.04]">
-              <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-slate-900 border border-white/[0.08] flex items-center justify-center relative group">
-                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-50" />
-                <span className="text-2xl">👟</span>
+            {cartItems.map((item, index) => (
+              <div key={index} className="flex items-center gap-4 rounded-2xl bg-white/[0.02] p-3 border border-white/[0.04]">
+                <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-slate-900 border border-white/[0.08] flex items-center justify-center relative group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-purple-500/10 opacity-50" />
+                  <span className="text-2xl">📦</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
+                  <p className="text-xs text-slate-400 mt-1">Cantidad: {item.quantity}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-sm font-bold text-white">{formatARS(item.unit_price)}</span>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-white truncate">{cartItem.title}</h4>
-                <p className="text-xs text-slate-400 mt-1">Cantidad: {cartItem.quantity}</p>
-              </div>
-              <div className="text-right">
-                <span className="text-sm font-bold text-white">{formatARS(cartItem.unit_price)}</span>
-              </div>
-            </div>
+            ))}
           </div>
 
           <div className="border-t border-white/[0.08] pt-4 mb-6">

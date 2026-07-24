@@ -161,6 +161,9 @@ export class SaasService {
 
     try {
       await client.query('BEGIN');
+      // Otorgamos permisos de superadmin en esta transacción para poder insertar
+      // en tablas con RLS (users, tenant_billing, locations) sin tener un tenant_id aún.
+      await client.query("SET LOCAL app.is_superadmin = 'true'");
 
       // ── Paso 1: Insertar Tenant ──────────────────────────────────────────
       const tenantResult = await client.query<{ id: string }>(
@@ -224,6 +227,17 @@ export class SaasService {
       );
 
       this.logger.log(`Usuario admin creado: email=${normalizedEmail}, tenant_id=${tenantId}`);
+
+      // ── Paso 4: Insertar ubicación por defecto ─────────────────────────────
+      await client.query(
+        `INSERT INTO locations (
+           id, tenant_id, name, is_active, created_at, updated_at
+         )
+         VALUES (gen_random_uuid(), $1, 'Depósito Central', true, NOW(), NOW())`,
+        [tenantId],
+      );
+
+      this.logger.log(`Ubicación por defecto creada: tenant_id=${tenantId}`);
 
       await client.query('COMMIT');
 

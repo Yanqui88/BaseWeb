@@ -7,10 +7,12 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Manifiestos del monorepo — incluye shared (dependencia de admin)
+# Manifiestos del monorepo — incluye todos para evitar errores en pnpm workspace
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json ./apps/api/
 COPY apps/admin/package.json ./apps/admin/
+COPY apps/store/package.json ./apps/store/
 
 RUN pnpm install --frozen-lockfile --config.ignore-scripts=false
 

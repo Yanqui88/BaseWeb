@@ -29,12 +29,62 @@ export interface LoginResponse {
   tenant_id: string;
 }
 
+export interface TenantProfile {
+  id: string;
+  name: string;
+  domain: string | null;
+  slug: string;
+}
+
+export interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+}
+
+export interface ProfileResponse {
+  tenant: TenantProfile | null;
+  user: UserProfile | null;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly db: DbService,
     private readonly jwt: JwtService,
   ) {}
+
+  /**
+   * Obtiene la información del perfil del usuario autenticado y su tenant.
+   *
+   * @param tenantId - ID del tenant extraído del token JWT.
+   * @param userId   - ID del usuario extraído del token JWT.
+   * @returns Objeto con datos de tenant y usuario.
+   */
+  async getMe(tenantId: string, userId: string): Promise<ProfileResponse> {
+    return this.db.als.run({ isSuperAdmin: true }, async () => {
+      const tenantResult = await this.db.query<TenantProfile>(
+        `SELECT id, name, domain, slug
+         FROM tenants
+         WHERE id = $1
+         LIMIT 1`,
+        [tenantId],
+      );
+
+      const userResult = await this.db.query<UserProfile>(
+        `SELECT id, email, name
+         FROM users
+         WHERE id = $1
+         LIMIT 1`,
+        [userId],
+      );
+
+      return {
+        tenant: tenantResult.rows[0] ?? null,
+        user: userResult.rows[0] ?? null,
+      };
+    });
+  }
 
   /**
    * Autentica a un administrador de tenant dado su email y contraseña.
@@ -99,3 +149,4 @@ export class AuthService {
     };
   }
 }
+

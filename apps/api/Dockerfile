@@ -3,15 +3,16 @@
 # ============================================================
 FROM node:22-alpine AS deps
 
-# pnpm via corepack
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Copiamos los manifiestos del monorepo primero (mejor cache de capas)
+# Copiamos los manifiestos del monorepo primero (mejor caché de capas)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json ./apps/api/
+COPY apps/admin/package.json ./apps/admin/
+COPY apps/store/package.json ./apps/store/
 
 # Instalamos TODAS las deps (necesarias para compilar)
 RUN pnpm install --frozen-lockfile --config.ignore-scripts=false
@@ -47,6 +48,8 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
 COPY apps/api/package.json ./apps/api/
+COPY apps/admin/package.json ./apps/admin/
+COPY apps/store/package.json ./apps/store/
 
 # Solo dependencias de producción
 RUN pnpm install --frozen-lockfile --prod --config.ignore-scripts=false

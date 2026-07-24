@@ -66,7 +66,7 @@ export class AdminVariantsController {
 
     const result = await this.db.query(
       `INSERT INTO variants (id, tenant_id, product_id, sku, title, price, compare_at)
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6)
        RETURNING id, sku, title, price,
                  compare_at AS "compareAt",
                  created_at AS "createdAt"`,

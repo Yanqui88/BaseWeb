@@ -63,7 +63,7 @@ services:
     command: >
       redis-server
       --maxmemory 100mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory-policy noeviction
       --save ""
       --appendonly no
     networks:
@@ -98,6 +98,9 @@ services:
       PORT: 4000
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
       REDIS_URL: redis://redis:6379
+      STORE_URL: http://host.docker.internal:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     # Puerto NO expuesto al host — el acceso externo pasa exclusivamente por Caddy.
     # Para depuración local temporal: docker compose port api 4000
     expose:
@@ -106,7 +109,7 @@ services:
       - backend
       - frontend
     volumes:
-      - api_uploads:/app/apps/api/uploads
+      - api_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy

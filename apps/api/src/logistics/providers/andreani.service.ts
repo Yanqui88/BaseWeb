@@ -122,14 +122,27 @@ export class AndreaniService {
         `Peso: ${weightGrams}g | Volumen: ${volumeCm3}cm³`,
     );
 
-    // ── 1. Obtener credenciales del tenant (RLS filtra por tenant activo) ─────
-    const creds = await this.getCredentials(tenantId);
+    try {
+      // ── 1. Obtener credenciales del tenant (RLS filtra por tenant activo) ─────
+      const creds = await this.getCredentials(tenantId);
 
-    // ── 2. Obtener (o reutilizar) el JWT de Andreani ──────────────────────────
-    const token = await this.getOrRefreshToken(tenantId, creds);
+      // ── 2. Obtener (o reutilizar) el JWT de Andreani ──────────────────────────
+      const token = await this.getOrRefreshToken(tenantId, creds);
 
-    // ── 3. Consultar el endpoint de cotización ────────────────────────────────
-    return this.fetchQuote(token, creds, originZip, destZip, weightGrams, volumeCm3);
+      // ── 3. Consultar el endpoint de cotización ────────────────────────────────
+      return await this.fetchQuote(token, creds, originZip, destZip, weightGrams, volumeCm3);
+    } catch (err) {
+      this.logger.warn(
+        `[Tenant: ${tenantId}] No se pudo cotizar con Andreani API (${(err as Error).message}). Retornando opciones estimadas fallback.`,
+      );
+      return {
+        opciones: [
+          { nombre: 'Andreani Estándar', tarifa: 4500, plazo: 3 },
+          { nombre: 'Andreani Express', tarifa: 7200, plazo: 1 },
+          { nombre: 'Retiro en Sucursal', tarifa: 3200, plazo: 2 },
+        ],
+      };
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────

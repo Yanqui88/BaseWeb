@@ -207,12 +207,20 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
    * @param slug - Identificador legible por humanos del tenant (ej: `"zapatos-martin"`).
    * @returns Los datos del tenant o `null` si no existe.
    */
-  async getTenantBySlug(slug: string): Promise<{ id: string; name: string } | null> {
-    const result = await this.pool.query<{ id: string; name: string }>(
-      'SELECT id, name FROM tenants WHERE slug = $1',
-      [slug],
-    );
-    return result.rows[0] ?? null;
+  async getTenantBySlug(slugOrDomain: string): Promise<{ id: string; name: string } | null> {
+    return new Promise((resolve, reject) => {
+      this.als.run({ isSuperAdmin: true }, async () => {
+        try {
+          const result = await this.query<{ id: string; name: string }>(
+            'SELECT id, name FROM tenants WHERE slug = $1 OR domain = $1 LIMIT 1',
+            [slugOrDomain],
+          );
+          resolve(result.rows[0] ?? null);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
   }
 
   /**
@@ -294,6 +302,9 @@ export class DbService implements OnModuleInit, OnModuleDestroy {
    * @param context - Contexto RLS leído del `AsyncLocalStorage`.
    */
   private async applyRlsSettings(client: PoolClient, context: RlsContext): Promise<void> {
+    // Cambiamos el rol a uno no-administrador para forzar RLS (ya que el pool puede estar conectado como superusuario)
+    await client.query('SET LOCAL ROLE rls_user');
+
     if (context.tenantId) {
       await client.query('SELECT set_config(\'app.current_tenant_id\', $1, true)', [context.tenantId]);
     }

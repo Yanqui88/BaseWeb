@@ -14,15 +14,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+function getDomainFromHost(host: string) {
+  let domain = host.split(":")[0];
+  if (domain.endsWith(".localhost")) domain = domain.replace(".localhost", "");
+  return domain;
+}
+
 export const fetchTenantConfig = cache(async (host: string) => {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const domain = getDomainFromHost(host);
   try {
     const res = await fetch(`${apiUrl}/public/tenant/config`, {
       headers: {
         "x-tenant-domain": host,
         "Content-Type": "application/json",
       },
-      next: { revalidate: 60 },
+      next: { tags: [`tenant:${domain}:config`] },
     });
     if (!res.ok) {
       return {
@@ -85,7 +92,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const fallbackTitle = config.name || "Mi Tienda Demo";
   const fallbackDescription = `Bienvenido a ${fallbackTitle}`;
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
   const ogImageUrl = config.seo_og_image
     ? (config.seo_og_image.startsWith("/uploads/") ? `${apiUrl}${config.seo_og_image}` : config.seo_og_image)
     : undefined;

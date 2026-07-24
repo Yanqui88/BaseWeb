@@ -10,6 +10,8 @@ WORKDIR /app
 # Manifiestos del monorepo (cache eficiente de capas)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/shared/package.json ./packages/shared/
+COPY apps/api/package.json ./apps/api/
+COPY apps/admin/package.json ./apps/admin/
 COPY apps/store/package.json ./apps/store/
 
 RUN pnpm install --frozen-lockfile --config.ignore-scripts=false
@@ -35,7 +37,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN pnpm --filter store build
 
 # ============================================================
-# STAGE 3: runner — imagen final mínima (Next.js standalone)
+# STAGE 3: runner — imagen final mínima
 # ============================================================
 FROM node:22-alpine AS runner
 
@@ -51,10 +53,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# --- Copiar artefactos del build de Next.js (modo standalone) ---
-# NOTA: Para activar el modo standalone (imagen más pequeña), agrega a next.config.ts:
-#   output: 'standalone'
-# Sin standalone, copiamos la forma clásica:
+# Artefactos de producción de Next.js store
 COPY --from=builder --chown=nextjs:nodejs /app/apps/store/.next ./apps/store/.next
 COPY --from=builder --chown=nextjs:nodejs /app/apps/store/public ./apps/store/public
 COPY --from=builder --chown=nextjs:nodejs /app/apps/store/node_modules ./apps/store/node_modules

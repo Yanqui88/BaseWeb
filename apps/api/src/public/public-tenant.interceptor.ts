@@ -97,7 +97,7 @@ export class PublicTenantInterceptor implements NestInterceptor {
       this.db.als.run({ isSuperAdmin: true }, async () => {
         try {
           const result = await this.db.query<TenantRow>(
-            'SELECT id FROM tenants WHERE domain = $1',
+            'SELECT id FROM tenants WHERE slug = $1 OR domain = $1 LIMIT 1',
             [domain.trim().toLowerCase()],
           );
 

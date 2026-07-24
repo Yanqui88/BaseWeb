@@ -79,6 +79,16 @@ export class OrdersService {
 
     // ── Paso 1 y 2: Insertar orden e ítems en una transacción atómica ────────
     const newOrder = await this.db.transaction(async (client) => {
+      let locationId = dto.locationId;
+      if (!locationId || locationId === '00000000-0000-0000-0000-000000000000') {
+        const locRes = await client.query(`SELECT id FROM locations WHERE tenant_id = $1 LIMIT 1`, [tenantId]);
+        if (locRes.rows[0]) {
+          locationId = locRes.rows[0].id;
+        } else {
+          throw new InternalServerErrorException('No se encontró una ubicación válida para el tenant.');
+        }
+      }
+
       const orderResult = await client.query<OrderRow>(
         `INSERT INTO orders (
           tenant_id,
@@ -105,7 +115,7 @@ export class OrdersService {
         ) RETURNING *`,
         [
           tenantId,
-          dto.locationId,
+          locationId,
           dto.customerEmail,
           dto.customerName,
           dto.customerPhone ?? null,

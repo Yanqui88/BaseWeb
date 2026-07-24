@@ -26,7 +26,7 @@ const getHeaders = async () => {
 };
 
 export async function fetchOrders(page: number = 1): Promise<Order[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getHeaders();
 
   try {
@@ -48,7 +48,7 @@ export async function fetchOrders(page: number = 1): Promise<Order[]> {
 }
 
 export async function fetchOrderDetail(id: string): Promise<OrderDetail | null> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getHeaders();
 
   try {
@@ -75,7 +75,7 @@ export async function fetchOrderDetail(id: string): Promise<OrderDetail | null> 
  * Realiza la mutación en la base de datos a través de la API e invalida la caché local de Next.js.
  */
 export async function updateOrderStatusAction(orderId: string, status: string): Promise<{ success: boolean }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const headersObj = await getHeaders();
 
   try {

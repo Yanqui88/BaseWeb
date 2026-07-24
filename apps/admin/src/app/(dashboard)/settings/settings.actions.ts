@@ -44,11 +44,12 @@ const getHeaders = async () => {
 };
 
 export async function getTenantConfigAction(): Promise<{ success: boolean; data?: TenantConfigData }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'default';
   const headersObj = await getHeaders();
 
   try {
-    const res = await fetch(`${apiUrl}/public/tenant/config`, {
+    const res = await fetch(`${apiUrl}/admin/${tenantSlug}/tenant/config`, {
       method: 'GET',
       headers: headersObj,
       cache: 'no-store',
@@ -66,8 +67,40 @@ export async function getTenantConfigAction(): Promise<{ success: boolean; data?
   }
 }
 
+export interface TenantVisualData {
+  name?: string | null;
+  primary_color?: string | null;
+  secondary_color?: string | null;
+  logo_url?: string | null;
+  whatsapp_phone?: string | null;
+}
+
+export async function updateTenantVisualAction(data: TenantVisualData): Promise<{ success: boolean; data?: any }> {
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'default';
+  const headersObj = await getHeaders();
+
+  try {
+    const res = await fetch(`${apiUrl}/admin/${tenantSlug}/tenant/visual`, {
+      method: 'PUT',
+      headers: headersObj,
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to update tenant visual config: ${res.statusText}`);
+    }
+
+    const responseData = await res.json();
+    return { success: true, data: responseData };
+  } catch (error) {
+    console.error('Error updating tenant visual config:', error);
+    return { success: false };
+  }
+}
+
 export async function updateTenantSeoAction(data: TenantSeoData): Promise<{ success: boolean; data?: any }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const tenantSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'default';
   const headersObj = await getHeaders();
 

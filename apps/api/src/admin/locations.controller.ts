@@ -43,7 +43,7 @@ export class AdminLocationsController {
 
     const result = await this.db.query(
       `INSERT INTO locations (id, tenant_id, name, city, address, is_active)
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
        RETURNING id, name, city, address,
                  is_active AS "isActive",
                  created_at AS "createdAt",

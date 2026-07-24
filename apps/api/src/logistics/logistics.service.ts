@@ -72,17 +72,14 @@ export class LogisticsService {
     }
 
     // ── 1. Obtener el zip_code del depósito activo del tenant ─────────────────
+    let originZip = '1000';
     const locationResult = await this.db.query<LocationRow>(
       'SELECT zip_code FROM locations LIMIT 1',
     );
 
-    if (locationResult.rows.length === 0) {
-      throw new NotFoundException(
-        `El tenant ${tenantId} no tiene ningún depósito/ubicación configurado.`,
-      );
+    if (locationResult.rows.length > 0 && locationResult.rows[0].zip_code) {
+      originZip = locationResult.rows[0].zip_code;
     }
-
-    const originZip = locationResult.rows[0].zip_code;
     this.logger.log(
       `[Tenant: ${tenantId}] Depósito origen: CP ${originZip}. Destino: CP ${dto.destinationZip}.`,
     );

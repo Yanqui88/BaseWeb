@@ -26,7 +26,6 @@ export default function RegistrationForm({ className = "" }: RegistrationFormPro
   // Submission State
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isSuccess, setIsSuccess] = useState(false);
 
   // Debounce Ref
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -154,7 +153,6 @@ export default function RegistrationForm({ className = "" }: RegistrationFormPro
         const data = await res.json();
 
         if (res.ok || res.status === 201) {
-          setIsSuccess(true);
           setStep(3);
           // Redirect to Admin panel after 2.5 seconds
           setTimeout(() => {

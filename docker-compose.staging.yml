@@ -1,0 +1,182 @@
+# =============================================================================
+# docker-compose.staging.yml — Entorno Staging Local Multi-tenant
+# =============================================================================
+
+name: proyectoweb-staging
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # BASE DE DATOS — PostgreSQL 16
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: pw_staging_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-proyectoweb}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_staging_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-proyectoweb_staging}
+    volumes:
+      - pg_staging_data:/var/lib/postgresql/data
+    networks:
+      - backend
+    ports:
+      - "5432:5432"
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-proyectoweb} -d ${POSTGRES_DB:-proyectoweb_staging}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # CACHÉ — Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: pw_staging_redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 100mb
+      --maxmemory-policy noeviction
+      --save ""
+      --appendonly no
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # API — NestJS
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: pw_staging_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-proyectoweb}:${POSTGRES_PASSWORD:-postgres_staging_pass}@postgres:5432/${POSTGRES_DB:-proyectoweb_staging}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-staging_jwt_secret_key_12345678901234567890}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-staging_admin_api_key}
+      ROOT_DOMAIN: saas-local.test
+    expose:
+      - "4000"
+    networks:
+      - backend
+      - frontend
+    volumes:
+      - api_staging_uploads:/app/apps/api/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # ADMIN — Next.js Admin
+  # ---------------------------------------------------------------------------
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+    container_name: pw_staging_admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      INTERNAL_API_URL: http://api:4000
+      NEXT_PUBLIC_API_URL: http://api.saas-local.test
+    expose:
+      - "3001"
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # STORE — Next.js Tienda Multi-tenant
+  # ---------------------------------------------------------------------------
+  store:
+    build:
+      context: .
+      dockerfile: apps/store/Dockerfile
+    container_name: pw_staging_store
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      INTERNAL_API_URL: http://api:4000
+      NEXT_PUBLIC_API_URL: http://api.saas-local.test
+    expose:
+      - "3000"
+    networks:
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # CADDY — Proxy Reverso (caddy:alpine)
+  # ---------------------------------------------------------------------------
+  caddy:
+    image: caddy:alpine
+    container_name: pw_staging_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_staging_data:/data
+      - caddy_staging_config:/config
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - api
+      - admin
+      - store
+
+# =============================================================================
+# REDES
+# =============================================================================
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
+
+# =============================================================================
+# VOLÚMENES PERSISTENTES
+# =============================================================================
+volumes:
+  pg_staging_data:
+    driver: local
+  api_staging_uploads:
+    driver: local
+  caddy_staging_data:
+    driver: local
+  caddy_staging_config:
+    driver: local

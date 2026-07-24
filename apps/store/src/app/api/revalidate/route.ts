@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ revalidated: true, tags, now: Date.now() });
-  } catch (err: any) {
-    return NextResponse.json({ message: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const error = err as Error;
+    return NextResponse.json({ message: error.message || "Internal server error" }, { status: 500 });
   }
 }

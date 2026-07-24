@@ -9,13 +9,14 @@
  * editan o eliminan productos/variantes/inventario.
  */
 
-import { Controller, Get, Inject, Param, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Query, UseInterceptors } from '@nestjs/common';
 import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
 import { DbService } from '../db/db.service';
 import {
   tenantCatalogKey,
   CACHE_TTL_CATALOG_MS,
 } from '../cache/cache-keys';
+import { PublicTenantInterceptor } from './public-tenant.interceptor';
 
 /** Forma del ítem serializado en el listado de catálogo. */
 interface CatalogItem {
@@ -32,6 +33,7 @@ interface CatalogResponse {
 }
 
 @Controller('public')
+@UseInterceptors(PublicTenantInterceptor)
 export class PublicProductsController {
   constructor(
     private db: DbService,

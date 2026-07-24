@@ -74,7 +74,7 @@ export class AdminInventoryController {
     // UPSERT: insertar o actualizar el inventario
     const result = await this.db.query(
       `INSERT INTO inventory (id, tenant_id, product_variant_id, location_id, quantity)
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4)
        ON CONFLICT (product_variant_id, location_id) DO UPDATE
          SET quantity = $4, updated_at = NOW()
        RETURNING id,

@@ -43,7 +43,7 @@ const getTenantSlug = () => {
 };
 
 export async function fetchCoupons(page: number = 1): Promise<{ success: boolean; data: Coupon[]; total: number }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const tenantSlug = getTenantSlug();
   const headersObj = await getHeaders();
 
@@ -78,7 +78,7 @@ export async function createCouponAction(data: {
   usage_limit?: number | null;
   is_active?: boolean;
 }): Promise<{ success: boolean; data?: Coupon; error?: string }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const tenantSlug = getTenantSlug();
   const headersObj = await getHeaders();
 
@@ -104,7 +104,7 @@ export async function createCouponAction(data: {
 }
 
 export async function deactivateCouponAction(id: string): Promise<{ success: boolean; error?: string }> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   const tenantSlug = getTenantSlug();
   const headersObj = await getHeaders();
 

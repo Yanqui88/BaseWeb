@@ -20,7 +20,7 @@ import { readdir } from "fs/promises";
 import { tenantConfigKey } from "../cache/cache-keys";
 import { CacheRevalidationService } from "../cache/cache-revalidation.service.js";
 import { JwtAuthGuard } from "../auth/jwt-auth.guard";
-import { UpsertBannerDto, UpdateTenantSeoDto } from "./dto/admin.dto";
+import { UpsertBannerDto, UpdateTenantSeoDto, UpdateTenantVisualDto } from "./dto/admin.dto";
 
 @Controller("admin")
 @UseGuards(JwtAuthGuard)
@@ -91,7 +91,7 @@ export class AdminController {
           is_active,
           sort_order
         ) VALUES (
-          gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+          gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
         ) RETURNING 
           id,
           tenant_id AS "tenantId",
@@ -219,5 +219,78 @@ export class AdminController {
     await this.revalidationService.revalidate(tenantId, ['config']);
 
     return result.rows[0];
+  }
+
+  @Put(":tenantSlug/tenant/visual")
+  async updateTenantVisual(
+    @Param("tenantSlug") _tenantSlug: string,
+    @Body() dto: UpdateTenantVisualDto,
+  ) {
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException("No tenant context");
+    }
+
+    const query = `
+      UPDATE tenants
+      SET 
+        name = COALESCE($1, name),
+        primary_color = COALESCE($2, primary_color),
+        secondary_color = COALESCE($3, secondary_color),
+        logo_url = COALESCE($4, logo_url),
+        whatsapp_phone = COALESCE($5, whatsapp_phone),
+        updated_at = NOW()
+      WHERE id = $6
+      RETURNING 
+        id,
+        name,
+        domain,
+        primary_color,
+        secondary_color,
+        logo_url,
+        whatsapp_phone
+    `;
+
+    const result = await this.db.query(query, [
+      dto.name ?? null,
+      dto.primary_color ?? null,
+      dto.secondary_color ?? null,
+      dto.logo_url ?? null,
+      dto.whatsapp_phone ?? null,
+      tenantId,
+    ]);
+
+    await this.cacheManager.del(tenantConfigKey(tenantId));
+    await this.revalidationService.revalidate(tenantId, ['config']);
+
+    return result.rows[0];
+  }
+
+  @Get(":tenantSlug/tenant/config")
+  async getTenantConfig(@Param("tenantSlug") _tenantSlug: string) {
+    const tenantId = this.db.als.getStore()?.tenantId;
+    if (!tenantId) {
+      throw new BadRequestException("No tenant context");
+    }
+
+    const query = `
+      SELECT 
+        id,
+        name,
+        domain,
+        primary_color,
+        secondary_color,
+        logo_url,
+        whatsapp_phone,
+        seo_title,
+        seo_description,
+        seo_keywords,
+        seo_og_image
+      FROM tenants
+      WHERE id = $1
+    `;
+
+    const result = await this.db.query(query, [tenantId]);
+    return result.rows[0] || null;
   }
 }

@@ -115,8 +115,9 @@ export default function ShippingCalculator({
       } else {
         throw new Error("Respuesta inválida del servidor de logística.");
       }
-    } catch (err: any) {
-      setError(err.message || "Hubo un error al calcular el envío. Inténtalo de nuevo.");
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error.message || "Hubo un error al calcular el envío. Inténtalo de nuevo.");
       setOptions([]);
     } finally {
       setLoading(false);

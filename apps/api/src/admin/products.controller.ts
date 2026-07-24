@@ -60,12 +60,18 @@ export class AdminProductsController {
   @Get(':tenantSlug/products')
   async list(@Param('tenantSlug') _tenantSlug: string) {
     const result = await this.db.query(
-      `SELECT id, title, slug, status,
-              cover_image AS "coverImage",
-              created_at AS "createdAt",
-              updated_at AS "updatedAt"
-       FROM products
-       ORDER BY created_at DESC`,
+      `SELECT p.id, p.title, p.slug, p.status, p.description,
+              p.cover_image AS "coverImage",
+              p.created_at AS "createdAt",
+              p.updated_at AS "updatedAt",
+              MIN(v.sku) as sku,
+              MIN(v.price) as price,
+              COALESCE(SUM(i.quantity), 0) AS stock
+       FROM products p
+       LEFT JOIN variants v ON v.product_id = p.id
+       LEFT JOIN inventory i ON i.product_variant_id = v.id
+       GROUP BY p.id
+       ORDER BY p.created_at DESC`,
     );
     return { items: result.rows };
   }
@@ -73,14 +79,14 @@ export class AdminProductsController {
   @Post(':tenantSlug/products')
   async create(
     @Param('tenantSlug') _tenantSlug: string,
-    @Body() dto: CreateProductDto,
+    @Body() dto: any,
   ) {
     const tenantId = this.db.als.getStore()?.tenantId;
     if (!tenantId) throw new BadRequestException('Tenant context is required');
 
     const result = await this.db.query(
       `INSERT INTO products (id, tenant_id, title, slug, description, status, cover_image)
-       VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5::"ProductStatus", $6)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5::"ProductStatus", $6)
        RETURNING id, title, slug, status, cover_image AS "coverImage"`,
       [
         tenantId,
@@ -92,7 +98,27 @@ export class AdminProductsController {
       ],
     );
 
-    // Invalidar caché del catálogo público
+    const productId = result.rows[0].id;
+    const price = typeof dto.price === 'number' ? dto.price : 0;
+    const sku = typeof dto.sku === 'string' ? dto.sku : `SKU-${Date.now()}`;
+    const stock = typeof dto.stock === 'number' ? dto.stock : 0;
+
+    const variantRes = await this.db.query(
+      `INSERT INTO variants (id, tenant_id, product_id, sku, title, price)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)
+       RETURNING id`,
+      [tenantId, productId, sku, 'Default', price]
+    );
+
+    const locationRes = await this.db.query(`SELECT id FROM locations WHERE tenant_id = $1 ORDER BY created_at ASC LIMIT 1`, [tenantId]);
+    if (locationRes.rows[0]) {
+      await this.db.query(
+        `INSERT INTO inventory (id, tenant_id, product_variant_id, location_id, quantity)
+         VALUES (gen_random_uuid(), $1, $2, $3, $4)`,
+        [tenantId, variantRes.rows[0].id, locationRes.rows[0].id, stock]
+      );
+    }
+
     await this.invalidateCatalogCache(tenantId);
     await this.revalidationService.revalidate(tenantId, ['products']);
 
@@ -103,18 +129,13 @@ export class AdminProductsController {
   async update(
     @Param('tenantSlug') _tenantSlug: string,
     @Param('productId') productId: string,
-    @Body() dto: UpdateProductDto,
+    @Body() dto: any,
   ) {
     const tenantId = this.db.als.getStore()?.tenantId;
 
-    // Verificar existencia (RLS filtra por tenant automáticamente)
-    const exists = await this.db.query(
-      `SELECT id FROM products WHERE id = $1 LIMIT 1`,
-      [productId],
-    );
+    const exists = await this.db.query(`SELECT id FROM products WHERE id = $1 LIMIT 1`, [productId]);
     if (exists.rows.length === 0) throw new NotFoundException('Product not found');
 
-    // Construir cláusulas SET dinámicamente
     const sets: string[] = [];
     const values: any[] = [];
     let idx = 1;
@@ -125,21 +146,42 @@ export class AdminProductsController {
     if (dto.status !== undefined) { sets.push(`status = $${idx++}::"ProductStatus"`); values.push(dto.status); }
     if (dto.coverImage !== undefined) { sets.push(`cover_image = $${idx++}`); values.push(dto.coverImage); }
 
-    // Siempre actualizar updated_at
     sets.push(`updated_at = NOW()`);
     values.push(productId);
 
     const result = await this.db.query(
-      `UPDATE products SET ${sets.join(', ')}
-       WHERE id = $${idx}
-       RETURNING id, title, slug, status,
-                 cover_image AS "coverImage",
-                 created_at AS "createdAt",
-                 updated_at AS "updatedAt"`,
+      `UPDATE products SET ${sets.join(', ')} WHERE id = $${idx} RETURNING id, title, slug, status, cover_image AS "coverImage"`,
       values,
     );
 
-    // Invalidar caché del catálogo público
+    if (dto.price !== undefined || dto.sku !== undefined) {
+      const variantRes = await this.db.query(`SELECT id FROM variants WHERE product_id = $1 LIMIT 1`, [productId]);
+      if (variantRes.rows.length > 0) {
+        const vId = variantRes.rows[0].id;
+        const vSets: string[] = [];
+        const vVals: any[] = [];
+        let vIdx = 1;
+        if (dto.price !== undefined) { vSets.push(`price = $${vIdx++}`); vVals.push(dto.price); }
+        if (dto.sku !== undefined) { vSets.push(`sku = $${vIdx++}`); vVals.push(dto.sku); }
+        vVals.push(vId);
+        if (vSets.length > 0) {
+          await this.db.query(`UPDATE variants SET ${vSets.join(', ')} WHERE id = $${vIdx}`, vVals);
+        }
+        
+        if (dto.stock !== undefined) {
+          const locRes = await this.db.query(`SELECT id FROM locations WHERE tenant_id = $1 ORDER BY created_at ASC LIMIT 1`, [tenantId]);
+          if (locRes.rows[0]) {
+             await this.db.query(`
+               INSERT INTO inventory (id, tenant_id, product_variant_id, location_id, quantity)
+               VALUES (gen_random_uuid(), $1, $2, $3, $4)
+               ON CONFLICT (product_variant_id, location_id)
+               DO UPDATE SET quantity = EXCLUDED.quantity
+             `, [tenantId, vId, locRes.rows[0].id, dto.stock]);
+          }
+        }
+      }
+    }
+
     if (tenantId) {
       await this.invalidateCatalogCache(tenantId);
       await this.revalidationService.revalidate(tenantId, ['products']);

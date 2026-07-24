@@ -7,7 +7,7 @@ export async function GET() {
   const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
   const baseUrl = `${protocol}://${host}`;
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 
   let products: Array<{ slug: string; updated_at: string }> = [];
 

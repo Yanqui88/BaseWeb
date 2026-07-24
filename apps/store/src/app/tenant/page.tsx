@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import { headers } from "next/headers";
 import { fetchTenantConfig } from "./layout";
 
@@ -22,15 +23,21 @@ function resolveImageUrl(apiUrl: string, url?: string | null) {
   return trimmed;
 }
 
+function getDomainFromHost(host: string) {
+  let domain = host.split(":")[0];
+  if (domain.endsWith(".localhost")) domain = domain.replace(".localhost", "");
+  return domain;
+}
+
 async function getBanner(host: string): Promise<HomeBanner> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const domain = getDomainFromHost(host);
 
   try {
-    const res = await fetch(`${apiUrl}/public/${tenant}/home/banner`, {
+    const res = await fetch(`${apiUrl}/public/${domain}/home/banner`, {
       headers: { "x-tenant-domain": host },
       cache: "force-cache",
-      next: { tags: [`tenant:${tenant}:banner`] },
+      next: { tags: [`tenant:${domain}:banner`] },
     });
 
     if (!res.ok) return null;
@@ -52,16 +59,16 @@ type Product = {
 };
 
 async function getProducts(host: string): Promise<Product[]> {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
-  const tenant = process.env.NEXT_PUBLIC_TENANT_SLUG || "demo";
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const domain = getDomainFromHost(host);
 
   try {
     const res = await fetch(
-      `${apiUrl}/public/${tenant}/products`,
+      `${apiUrl}/public/${domain}/products`,
       {
         headers: { "x-tenant-domain": host },
         cache: "force-cache",
-        next: { tags: [`tenant:${tenant}:products`] },
+        next: { tags: [`tenant:${domain}:products`] },
       }
     );
 
@@ -87,7 +94,7 @@ function formatARSFromCents(cents: number) {
 }
 
 export default async function Home() {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000";
 
   const headersList = await headers();
   const host = headersList.get("host") || "localhost:3000";

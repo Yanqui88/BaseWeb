@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getBannerAction, updateBannerAction, getUploadsAction, uploadFileAction } from "./actions";
 
 type Banner = {
   desktopImageUrl: string;
@@ -79,16 +80,7 @@ export default function BannerPage() {
         setLoading(true);
         setError(null);
 
-        const res = await fetch(`${apiUrl}/admin/${tenant}/home/banner`, {
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          throw new Error(text || "Failed to load banner");
-        }
-
-        const data = (await res.json()) as Banner | null;
+        const data = await getBannerAction() as Banner | null;
         if (data) {
           setForm({
             desktopImageUrl: data.desktopImageUrl ?? "",
@@ -116,18 +108,9 @@ export default function BannerPage() {
     const fd = new FormData();
     fd.append("file", file);
 
-    const res = await fetch(`${apiUrl}/admin/${tenant}/uploads`, {
-      method: "POST",
-      body: fd,
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(text || "Upload failed");
-    }
-
-    const json = (await res.json()) as { url: string };
-    return json.url; // ej: /uploads/xxx.png
+    const res = await uploadFileAction(fd);
+    if (!res.success) throw new Error(res.error || "Upload failed");
+    return res.url;
   }
 
   async function onPickDesktop(e: React.ChangeEvent<HTMLInputElement>) {
@@ -174,14 +157,7 @@ export default function BannerPage() {
 
     try {
       setLibraryLoading(true);
-      const res = await fetch(`${apiUrl}/admin/${tenant}/uploads`, {
-        cache: "no-store",
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Failed to load uploads library");
-      }
-      const data = (await res.json()) as UploadItem[];
+      const data = (await getUploadsAction()) as UploadItem[];
       setUploads(Array.isArray(data) ? data : []);
     } catch (e: any) {
       setLibraryError(e?.message ?? "Library load error");
@@ -221,16 +197,8 @@ export default function BannerPage() {
         isActive: form.isActive ?? true,
       };
 
-      const res = await fetch(`${apiUrl}/admin/${tenant}/home/banner`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Save failed");
-      }
+      const res = await updateBannerAction(payload);
+      if (!res.success) throw new Error(res.error || "Save failed");
     } catch (e: any) {
       setError(e?.message ?? "Unknown save error");
     } finally {
@@ -468,14 +436,7 @@ export default function BannerPage() {
                   try {
                     setLibraryLoading(true);
                     setLibraryError(null);
-                    const res = await fetch(`${apiUrl}/admin/${tenant}/uploads`, {
-                      cache: "no-store",
-                    });
-                    if (!res.ok) {
-                      const text = await res.text();
-                      throw new Error(text || "Failed to reload uploads library");
-                    }
-                    const data = (await res.json()) as UploadItem[];
+                    const data = (await getUploadsAction()) as UploadItem[];
                     setUploads(Array.isArray(data) ? data : []);
                   } catch (e: any) {
                     setLibraryError(e?.message ?? "Library reload error");

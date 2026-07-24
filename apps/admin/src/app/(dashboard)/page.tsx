@@ -1,42 +1,65 @@
 import React from 'react';
+import { cookies, headers } from 'next/headers';
 import KpiCards from '@/components/KpiCards';
 import SalesChart from '@/components/SalesChart';
 import TopProducts from '@/components/TopProducts';
-import { getKpisAction, getSalesChartAction, getTopProductsAction } from './analytics.actions';
 
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardPage() {
-  const [kpisRes, salesChartRes, topProductsRes] = await Promise.all([
-    getKpisAction(),
-    getSalesChartAction(),
-    getTopProductsAction(),
-  ]);
+  const cookieStore = await cookies();
+  const token = cookieStore.get('access_token')?.value;
+
+  const headersList = await headers();
+  const host = headersList.get('host') || 'localhost:3001';
+  const tenantDomain = host.split(':')[0];
+
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+
+  const headersObj: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-tenant-domain': tenantDomain,
+  };
+
+  if (token) {
+    headersObj['Authorization'] = `Bearer ${token}`;
+  }
+
+  // Fetch KPIs
+  let kpisRes = { success: false, data: undefined as any };
+  try {
+    const res = await fetch(`${apiUrl}/analytics/kpis`, { headers: headersObj, cache: 'no-store' });
+    if (res.ok) kpisRes = { success: true, data: await res.json() };
+    else console.error('Error KPIs:', res.statusText);
+  } catch (err) {}
+
+  // Fetch Sales
+  let salesChartRes = { success: false, data: undefined as any };
+  try {
+    const res = await fetch(`${apiUrl}/analytics/sales-chart`, { headers: headersObj, cache: 'no-store' });
+    if (res.ok) salesChartRes = { success: true, data: await res.json() };
+    else console.error('Error Sales:', res.statusText);
+  } catch (err) {}
+
+  // Fetch Top Products
+  let topProductsRes = { success: false, data: undefined as any };
+  try {
+    const res = await fetch(`${apiUrl}/analytics/top-products`, { headers: headersObj, cache: 'no-store' });
+    if (res.ok) topProductsRes = { success: true, data: await res.json() };
+    else console.error('Error Top Products:', res.statusText);
+  } catch (err) {}
 
   // Generamos datos de demostración como fallback para asegurar que el dashboard
   // siempre se vea espectacular aun cuando no haya datos en la base de datos o el token haya expirado.
   const fallbackKpis = {
-    revenue: 43850000,
-    ordersCount: 247,
-    averageTicket: 177530,
+    revenue: 0,
+    ordersCount: 0,
+    averageTicket: 0,
   };
 
-  const fallbackSalesData = Array.from({ length: 30 }).map((_, idx) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (29 - idx));
-    return {
-      date: d.toISOString(),
-      total: Math.floor(Math.random() * 1200000) + 400000,
-    };
-  });
+  const fallbackSalesData: any[] = [];
 
-  const fallbackTopProducts = [
-    { id: '1', title: 'iPhone 15 Pro Max', totalSold: 84 },
-    { id: '2', title: 'MacBook Pro 14" M3', totalSold: 56 },
-    { id: '3', title: 'iPad Pro M4', totalSold: 41 },
-    { id: '4', title: 'AirPods Pro 2', totalSold: 38 },
-    { id: '5', title: 'Apple Watch Ultra 2', totalSold: 28 },
-  ];
+  const fallbackTopProducts: any[] = [];
 
   const hasRealData = kpisRes.success && salesChartRes.success && topProductsRes.success;
   

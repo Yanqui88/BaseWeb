@@ -11,7 +11,7 @@ export async function loginAction(prevState: any, formData: FormData) {
     return { error: 'Por favor completa todos los campos' };
   }
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
+  const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:4000';
   
   // Extraer el dominio del tenant para enviarlo (aunque para /auth/login el backend usa el email para identificar al tenant, es buena práctica si hay RLS)
   const headersList = await headers();
@@ -32,7 +32,13 @@ export async function loginAction(prevState: any, formData: FormData) {
       if (res.status === 401) {
         return { error: 'Credenciales inválidas' };
       }
-      return { error: 'Error de servidor. Intenta de nuevo.' };
+      try {
+        const errorData = await res.json();
+        const msg = Array.isArray(errorData.message) ? errorData.message[0] : errorData.message;
+        return { error: msg || 'Error de servidor. Intenta de nuevo.' };
+      } catch (e) {
+        return { error: `Error ${res.status}: ${res.statusText}` };
+      }
     }
 
     const data = await res.json();
@@ -54,4 +60,10 @@ export async function loginAction(prevState: any, formData: FormData) {
   }
 
   redirect('/');
+}
+
+export async function logoutAction() {
+  const cookieStore = await cookies();
+  cookieStore.delete('access_token');
+  redirect('/login');
 }

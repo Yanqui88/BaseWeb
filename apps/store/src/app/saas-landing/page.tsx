@@ -120,7 +120,7 @@ export default function SaaSPage() {
             Poder Tecnológico
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight font-outfit">
-            Diseñado para que te enboques únicamente en vender
+            Diseñado para que te enfoques únicamente en vender
           </h2>
           <p className="text-sm sm:text-base text-slate-400">
             Nuestra arquitectura multi-tenant combina velocidad, seguridad bancaria y flexibilidad total para escalar tu negocio.
